@@ -1,6 +1,7 @@
-# webserver.py (FULL AND FINAL CODE with Lifespan)
+# webserver.py (FINAL CODE - No more traceback or get_history errors)
 
 import math
+import traceback # <-- YAHAN IMPORT ADD KIYA HAI
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -9,12 +10,11 @@ from pyrogram.file_id import FileId
 from pyrogram import raw, Client
 
 from config import Config
-from bot import bot, initialize_clients, multi_clients, work_loads, get_readable_file_size
+from bot import bot, initialize_clients, multi_clients, work_loads, get_readable_file_size, link_db # link_db ko import kiya
 
-# --- Lifespan Manager (Starts and Stops the Bot with the Server) ---
+# --- Lifespan Manager ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Application startup
     print("Web server is starting up...")
     print("Starting bot...")
     await bot.start()
@@ -23,12 +23,10 @@ async def lifespan(app: FastAPI):
     await initialize_clients(bot)
     print("All clients initialized. Application startup complete.")
     yield
-    # Application shutdown
     print("Web server is shutting down...")
     if bot.is_initialized:
         await bot.stop()
     print("Bot stopped.")
-
 
 # --- FastAPI App ---
 app = FastAPI(lifespan=lifespan)
@@ -39,12 +37,11 @@ class_cache = {}
 # --- Health Check Route ---
 @app.api_route("/", methods=["GET", "HEAD"])
 async def root():
-    """Health check route for Render that handles GET and HEAD"""
     return {"status": "ok", "message": "Server is healthy and running!"}
-
 
 # --- ByteStreamer Class for Streaming Logic ---
 class ByteStreamer:
+    # ... (Yeh class same rahegi, koi change nahi)
     def __init__(self, client: Client):
         self.client = client
 
@@ -92,40 +89,39 @@ class ByteStreamer:
         finally:
             work_loads[index] -= 1
 
-
 # --- API Routes ---
 @app.get("/show/{unique_id}")
 async def show_file_page(request: Request, unique_id: str):
     try:
+        # YAHAN BADLAV HAI: Log channel ke bajaye in-memory dictionary se ID lena
+        storage_msg_id = link_db.get(unique_id)
+        if not storage_msg_id:
+            raise HTTPException(status_code=404, detail="Link expired or invalid. Please generate a new link.")
+        
         main_bot = multi_clients.get(0)
         if not main_bot: raise HTTPException(503, "Bot not initialized yet")
 
-        async for msg in main_bot.get_chat_history(Config.LOG_CHANNEL, limit=2000):
-            if msg.text and f"Unique ID: `{unique_id}`" in msg.text:
-                storage_msg_id = int(msg.text.split("Storage Msg ID: `")[1].split("`")[0])
-                
-                file_msg = await main_bot.get_messages(Config.STORAGE_CHANNEL, storage_msg_id)
-                media = file_msg.document or file_msg.video or file_msg.audio
-                if not media: raise HTTPException(404, "File media not found in message.")
+        file_msg = await main_bot.get_messages(Config.STORAGE_CHANNEL, storage_msg_id)
+        media = file_msg.document or file_msg.video or file_msg.audio
+        if not media: raise HTTPException(404, "File media not found in message.")
 
-                file_name = media.file_name
-                file_size = get_readable_file_size(media.file_size)
-                mime_type = media.mime_type or "application/octet-stream"
+        file_name = media.file_name
+        file_size = get_readable_file_size(media.file_size)
+        mime_type = media.mime_type or "application/octet-stream"
+        
+        is_video = mime_type.startswith("video/")
+        is_audio = mime_type.startswith("audio/")
+        
+        dl_link = f"{Config.BASE_URL}/dl/{storage_msg_id}/{file_name}"
+        
+        context = {
+            "request": request, "file_name": file_name, "file_size": file_size,
+            "is_media": is_video or is_audio, "direct_dl_link": dl_link,
+            "mx_player_link": f"intent:{dl_link}#Intent;action=android.intent.action.VIEW;type={mime_type};end",
+            "vlc_player_link": f"vlc://{dl_link}"
+        }
+        return templates.TemplateResponse("show.html", context)
                 
-                is_video = mime_type.startswith("video/")
-                is_audio = mime_type.startswith("audio/")
-                
-                dl_link = f"{Config.BASE_URL}/dl/{storage_msg_id}/{file_name}"
-                
-                context = {
-                    "request": request, "file_name": file_name, "file_size": file_size,
-                    "is_media": is_video or is_audio, "direct_dl_link": dl_link,
-                    "mx_player_link": f"intent:{dl_link}#Intent;action=android.intent.action.VIEW;type={mime_type};end",
-                    "vlc_player_link": f"vlc://{dl_link}"
-                }
-                return templates.TemplateResponse("show.html", context)
-                
-        raise HTTPException(status_code=404, detail="Link expired or invalid.")
     except Exception as e:
         print(f"Error in /show: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
@@ -133,6 +129,7 @@ async def show_file_page(request: Request, unique_id: str):
 
 @app.get("/dl/{msg_id}/{file_name}")
 async def stream_handler(request: Request, msg_id: int, file_name: str):
+    # ... (Yeh poora function same rahega, koi change nahi)
     range_header = request.headers.get("Range", 0)
     
     index = min(work_loads, key=work_loads.get, default=0)
