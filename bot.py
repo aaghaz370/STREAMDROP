@@ -1,5 +1,3 @@
-# bot.py (FULL UPDATED CODE)
-
 import os
 import time
 import asyncio
@@ -16,7 +14,7 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from config import Config
 from database import db
 
-# In-memory dictionaries
+# Dictionaries
 multi_clients = {}
 work_loads = {}
 
@@ -33,7 +31,12 @@ bot = Client(
 class TokenParser:
     @staticmethod
     def parse_from_env():
-        return { c + 1: t for c, (_, t) in enumerate(filter(lambda n: n[0].startswith("MULTI_TOKEN"), sorted(os.environ.items()))) }
+        return {
+            c + 1: t
+            for c, (_, t) in enumerate(
+                filter(lambda n: n[0].startswith("MULTI_TOKEN"), sorted(os.environ.items()))
+            )
+        }
 
 async def start_client(client_id, bot_token):
     try:
@@ -56,6 +59,16 @@ async def initialize_clients(main_bot_instance):
     multi_clients[0] = main_bot_instance
     work_loads[0] = 0
     
+    # --- YAHAN FIX ADD KIYA GAYA HAI ---
+    try:
+        print("Pre-caching essential channel information...")
+        await main_bot_instance.get_chat(Config.LOG_CHANNEL)
+        await main_bot_instance.get_chat(Config.STORAGE_CHANNEL)
+        print("Channel information cached successfully.")
+    except Exception as e:
+        print(f"!!! WARNING: Could not fetch channel info. Make sure bot is an admin in LOG_CHANNEL & STORAGE_CHANNEL. Error: {e}")
+    # --- FIX YAHAN KHATAM HOTA HAI ---
+
     all_tokens = TokenParser.parse_from_env()
     if not all_tokens:
         print("No additional clients found. Using default bot only.")
