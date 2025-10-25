@@ -1,75 +1,54 @@
 import asyncio
-import os
-from traceback import format_exc
+from pyrogram import enums
 
-from pyrogram import idle
-from pyrogram.errors import FloodWait, PeerIdInvalid
-
-from bot import bot, initialize_clients
-from database import db
-from webserver import app
-import uvicorn
+# Sirf bot ko import karo, baaki kuch nahi
+from bot import bot
 from config import Config
 
-PORT = int(os.environ.get("PORT", 8000))
-config = uvicorn.Config(app=app, host='0.0.0.0', port=PORT, log_level="info")
-server = uvicorn.Server(config)
-
-
-async def start_services():
-    """Starts all services in the correct order."""
-    print("--- Initializing Services ---")
+async def main():
+    print("--- STARTING CHANNEL DIAGNOSTIC TOOL ---")
+    
+    # Bot ko start karo
+    await bot.start()
+    print(f"Bot [@{bot.me.username}] logged in successfully.")
+    
+    target_channel_id = Config.STORAGE_CHANNEL
+    print(f"TARGET CHANNEL ID from ENV VARS is: {target_channel_id}\n")
+    
+    print("Fetching list of all channels/chats the bot is a member of...")
+    found_channel = False
+    
     try:
-        # Connect to DB
-        await db.connect()
+        # Bot jin-jin chats mein hai, unki list nikalo
+        async for dialog in bot.get_dialogs():
+            print(f" - Found Chat: '{dialog.chat.title}' | ID: {dialog.chat.id} | Type: {dialog.chat.type}")
+            
+            # Check karo ki kya yeh hamara target channel hai
+            if dialog.chat.id == target_channel_id:
+                print(f"\n✅✅✅ MATCH FOUND! The bot is a member of the target channel.")
+                found_channel = True
 
-        # Start the main bot client
-        print("Starting main bot...")
-        await bot.start()
-        print(f"Bot [@{bot.me.username}] started successfully.")
+                # Ab check karo ki bot admin hai ya nahi
+                try:
+                    member = await bot.get_chat_member(target_channel_id, "me")
+                    if member.status in [enums.ChatMemberStatus.ADMINISTRATOR, enums.ChatMemberStatus.OWNER]:
+                        print(f"✅✅✅ PERMISSION OK! Bot is an ADMIN with status: {member.status.value}")
+                    else:
+                        print(f"❌❌❌ PERMISSION ERROR! Bot is in the channel but IS NOT AN ADMIN. Status: {member.status.value}")
+                except Exception as e:
+                    print(f"❌❌❌ Could not check admin status. Error: {e}")
 
-        # Pre-fetch and cache the storage channel information
-        print(f"Verifying and caching STORAGE_CHANNEL: {Config.STORAGE_CHANNEL}")
-        await bot.get_chat(Config.STORAGE_CHANNEL)
-        print("✅ STORAGE_CHANNEL is accessible.")
-        
-        # Initialize other clients
-        await initialize_clients(bot)
-        
-        # Start the web server as a background task
-        print(f"Starting web server on http://0.0.0.0:{PORT}")
-        asyncio.create_task(server.serve())
-        
-        print("\n✅✅✅ All services are up and running! ✅✅✅\n")
-        await idle()
-
-    except PeerIdInvalid:
-        print("\n❌❌❌ FATAL: PEER_ID_INVALID ❌❌❌")
-        print("Could not find the STORAGE_CHANNEL. This is a configuration error.")
-        print("TROUBLESHOOTING:")
-        print("1. Double-check the STORAGE_CHANNEL ID in your environment variables.")
-        print("2. Ensure the bot is an administrator in that channel.")
-        print("3. Ensure the correct BOT_TOKEN is being used.")
-    except FloodWait as e:
-        print(f"!!! FloodWait of {e.value} seconds received. Sleeping...")
-        await asyncio.sleep(e.value + 5)
-        # We will let Render restart the service after the wait.
     except Exception as e:
-        print(f"An unexpected error occurred during startup: {format_exc()}")
-    finally:
-        print("--- Services are shutting down ---")
-        if bot.is_initialized:
-            await bot.stop()
-        await db.disconnect()
-        print("Shutdown complete.")
+        print(f"\n❌❌❌ An error occurred while getting dialogs: {e}")
+
+    if not found_channel:
+        print("\n❌❌❌ FATAL ERROR: The target channel ID was NOT FOUND in the list of channels the bot is a member of.")
+        print("This confirms the 'PeerIdInvalid' error. The bot is NOT in the channel.")
+
+    print("\n--- DIAGNOSTIC COMPLETE ---")
+    await bot.stop()
 
 
-if __name__ == '__main__':
-    loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(start_services())
-    except KeyboardInterrupt:
-        print("Service stopping due to user interrupt.")
-    finally:
-        if not loop.is_closed():
-            loop.close()
+if __name__ == "__main__":
+    # Is temporary script ko chalao
+    asyncio.run(main())
