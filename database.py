@@ -1,4 +1,4 @@
-# database.py (FULL CODE)
+# database.py (UPDATED VERSION)
 
 import motor.motor_asyncio
 from config import Config
@@ -6,14 +6,28 @@ from config import Config
 class Database:
     def __init__(self):
         self._client = None
+        self.db = None
+        self.collection = None
+        if not Config.DATABASE_URL:
+            print("WARNING: DATABASE_URL not set. Links will not be permanent.")
+
+    async def connect(self):
+        """Database se connection banata hai."""
         if Config.DATABASE_URL:
+            print("Connecting to the database...")
             self._client = motor.motor_asyncio.AsyncIOMotorClient(Config.DATABASE_URL)
             self.db = self._client["StreamLinksDB"]
             self.collection = self.db["links"]
+            print("✅ Database connection established.")
         else:
             self.db = None
             self.collection = None
-            print("WARNING: DATABASE_URL not set. Links will not be permanent.")
+
+    async def disconnect(self):
+        """Database connection ko band karta hai."""
+        if self._client:
+            self._client.close()
+            print("Database connection closed.")
 
     async def save_link(self, unique_id, message_id):
         if self.collection is not None:
