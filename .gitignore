@@ -1,0 +1,11 @@
+# Secrets - KABHI PUSH NA KAREIN
+.env
+*.session
+*.session-journal
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Downloaded files
+downloads/
