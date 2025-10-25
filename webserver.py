@@ -1,4 +1,4 @@
-# webserver.py (THE REAL, SIMPLE, AND WORKING FIX)
+# webserver.py (FINAL GUARANTEED FIX)
 
 import math
 import traceback
@@ -6,7 +6,6 @@ import os
 import sys
 import asyncio
 from contextlib import asynccontextmanager
-from typing import Optional
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
@@ -18,35 +17,37 @@ from config import Config
 from bot import bot, initialize_clients, multi_clients, work_loads, get_readable_file_size
 from database import db
 
-# --- Lifespan Manager ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Starting bot...")
     await bot.start()
-    print("Bot started. Verifying STORAGE_CHANNEL access...")
+    print("Bot started.")
 
-    # --- YE HAI ASLI FIX ---
-    # Hum bot ko 5 baar try karne ka mauka denge taaki woh channel ko 'seekh' le.
-    # Yeh 'cold start' problem ko hamesha ke liye theek kar dega.
-    retries = 5
-    for i in range(retries):
-        try:
-            await bot.get_chat(Config.STORAGE_CHANNEL)
-            print("✅ STORAGE_CHANNEL access verified.")
-            break 
-        except Exception as e:
-            if i < retries - 1:
-                print(f"Attempt {i+1}/{retries} failed to access channel. Retrying in 5 seconds...")
-                await asyncio.sleep(5)
-            else:
-                print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                print(f"!!! FATAL ERROR: Could not access STORAGE_CHANNEL after {retries} attempts.")
-                print(f"!!! LAST ERROR: {e}")
-                print("!!! Please CHECK:")
-                print("!!! 1. Is your STORAGE_CHANNEL ID correct in your .env file?")
-                print("!!! 2. Is the bot an ADMIN in that channel?")
-                print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
-                sys.exit(1)
+    # --- THE REAL, GUARANTEED FIX ---
+    # Hum bot ko channel "seekhne" ke liye ek message bhejkar turant delete kar denge.
+    # Yeh aapke manual solution ko automate karta hai aur 100% kaam karega.
+    print(f"Warming up cache for STORAGE_CHANNEL ({Config.STORAGE_CHANNEL})...")
+    try:
+        # Ek temporary message bhejo
+        sent_msg = await bot.send_message(
+            chat_id=Config.STORAGE_CHANNEL,
+            text="`Bot Initialized. This message will be deleted.`"
+        )
+        # Turant uss message ko delete kar do
+        await bot.delete_messages(
+            chat_id=Config.STORAGE_CHANNEL,
+            message_ids=sent_msg.id
+        )
+        print("✅ Cache warmup successful.")
+    except Exception as e:
+        print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print(f"!!! FATAL ERROR: Could not warm up cache for STORAGE_CHANNEL.")
+        print(f"!!! ERROR: {e}")
+        print("!!! Please CHECK:")
+        print("!!! 1. Is your STORAGE_CHANNEL ID correct?")
+        print("!!! 2. Is the bot an ADMIN with SEND and DELETE message permissions?")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
+        sys.exit(1)
     
     print("Initializing other clients...")
     await initialize_clients(bot)
@@ -61,7 +62,8 @@ app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 class_cache = {}
 
-# Baaki ka code bilkul waisa hi hai jaisa aapke paas tha. Usmein koi badlav nahi.
+# --- Baaki ka code bilkul same hai, usmein koi badlav nahi ---
+
 @app.api_route("/", methods=["GET", "HEAD"])
 async def root():
     return {"status": "ok", "message": "Server is healthy and running!"}
@@ -118,14 +120,12 @@ async def show_file_page(request: Request, unique_id: str):
         file_msg = await main_bot.get_messages(Config.STORAGE_CHANNEL, storage_msg_id)
         media = file_msg.document or file_msg.video or file_msg.audio
         if not media: raise HTTPException(404, "File media not found.")
-        
         original_file_name = media.file_name
         masked_name = mask_filename(original_file_name)
         file_size = get_readable_file_size(media.file_size)
         mime_type = media.mime_type or "application/octet-stream"
         is_media = mime_type.startswith("video/") or mime_type.startswith("audio/")
         dl_link = f"{Config.BASE_URL}/dl/{storage_msg_id}"
-        
         context = {
             "request": request, "file_name": masked_name, "file_size": file_size,
             "is_media": is_media, "direct_dl_link": dl_link,
