@@ -1,4 +1,4 @@
-# app.py (THE TRULY FINAL, CORRECTED CODE)
+# app.py (THE ABSOLUTELY, TRULY FINAL, MANUALLY CHECKED CODE)
 
 import os
 import asyncio
@@ -6,7 +6,7 @@ import secrets
 import traceback
 import uvicorn
 from urllib.parse import urlparse
-from contextlib import asynccontextmanager # <--- THIS IS THE CORRECT IMPORT
+from contextlib import asynccontextmanager # <--- CORRECT IMPORT
 
 import aiohttp
 import aiofiles
@@ -74,7 +74,7 @@ multi_clients = {}
 work_loads = {}
 class_cache = {}
 
-# --- (All the other code for handlers, routes, etc. is correct and remains unchanged) ---
+# --- Helper Functions, Handlers, Routes --- (This code is correct, no changes)
 def get_readable_file_size(size_in_bytes):
     if not size_in_bytes: return '0B'; power,n=1024,0; p_labels={0:'',1:'K',2:'M',3:'G'}
     while size_in_bytes>=power and n<len(p_labels): size_in_bytes/=power; n+=1
@@ -190,34 +190,5 @@ async def stream_media(r:Request,mid:int,fname:str):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="#12 exporting cache to client directory
-#12 preparing build cache for export
-#12 writing cache image manifest sha256:d8c6b2401666e850b1d3d63c437f1983050b178c187e076717596a70a000000a 0.0s done
-#12 DONE 2.2s
-Pushing image to registry...
-Upload succeeded
-==> Deploying...
-INFO:     Started server process [1]
-INFO:     Waiting for application startup.
---- Lifespan event: STARTUP ---
-Connecting to the database...
-✅ Database connection established.
-Starting Pyrogram client in background...
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:10000 (Press CTRL+C to quit)
-Bot [@SharingBoxBot] started successfully.
-Verifying channel access for @hkdqyvb...
-✅ Channel is accessible.
-Gatekeeper: Running cleanup...
-Gatekeeper: Initial channel cleanup complete.
---- Lifespan startup complete. Bot is running in the background. ---
-==> Your service is live 🎉
-==> 
-==> ///////////////////////////////////////////////////////////
-==> 
-==> Available at your primary URL https://sharingbox.onrender.com
-==> 
-==> ///////////////////////////////////////////////////////////
-INFO:     10.223.25.152:0 - "GET / HTTP/1.1" 404 Not Found
-
-0.0.0.0", port=port)
+    # --- THIS IS THE CORRECT, FINAL LINE ---
+    uvicorn.run("app:app", host="0.0.0.0", port=port)
