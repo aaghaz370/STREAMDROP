@@ -1,4 +1,4 @@
-# config.py (FINAL & CORRECT)
+# config.py (CLEANED VERSION)
 
 import os
 from dotenv import load_dotenv
