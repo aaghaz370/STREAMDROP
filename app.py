@@ -171,7 +171,7 @@ async def start_command(client: Client, message: Message):
                 channel_link = f"https://t.me/{channel_username}"
                 
                 join_button = InlineKeyboardButton("📢 Join Channel", url=channel_link)
-                retry_button = InlineKeyboardButton("✅ Try Again", url=f"https://t.me/{Config.BOT_USERNAME}?start={message.command[1]}")
+                retry_button = InlineKeyboardButton("✅ Joined", url=f"https://t.me/{Config.BOT_USERNAME}?start={message.command[1]}")
                 
                 keyboard = InlineKeyboardMarkup([[join_button], [retry_button]])
                 
@@ -186,9 +186,9 @@ async def start_command(client: Client, message: Message):
         # Agar user member hai (ya force sub on nahi hai), toh use asli link do
         final_link = f"{Config.BLOGGER_PAGE_URL}?id={unique_id}" if Config.BLOGGER_PAGE_URL else f"{Config.BASE_URL}/show/{unique_id}"
         
-        reply_text = f"✅ Verification successful!\n\nTap to copy your link:\n`{final_link}`"
+        reply_text = f"✅ Verification Successful!\n\nCopy Link: `{final_link}`"
         
-        button = InlineKeyboardMarkup([[InlineKeyboardButton("Open Your Link 🔗", url=final_link)]])
+        button = InlineKeyboardMarkup([[InlineKeyboardButton("Open Link", url=final_link)]])
         
         await message.reply_text(reply_text, reply_markup=button, quote=True, disable_web_page_preview=True)
 
@@ -216,11 +216,10 @@ async def handle_file_upload(message: Message, user_id: int):
         # Ab direct link ke bajaye, verification link generate karo
         verify_link = f"https://t.me/{Config.BOT_USERNAME}?start=verify_{unique_id}"
         
-        button = InlineKeyboardMarkup([[InlineKeyboardButton("Click to Get Link 🔗", url=verify_link)]])
+        button = InlineKeyboardMarkup([[InlineKeyboardButton("Get Link Now", url=verify_link)]])
         
         await message.reply_text(
-            "✅ File processed!\n\n"
-            "Click the button below to get your final link.",
+            "✅ File Uploaded!",
             reply_markup=button,
             quote=True
         )
