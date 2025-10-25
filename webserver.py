@@ -1,9 +1,10 @@
-# webserver.py (THE PERMANENT FIX VERSION)
+# webserver.py (THE 100% CORRECTED FINAL VERSION)
 
 import math
 import traceback
 import os
-import sys # Yeh line add karein
+import sys
+import asyncio # Yeh line add karein
 from contextlib import asynccontextmanager
 from typing import Optional
 from fastapi import FastAPI, Request, HTTPException
@@ -12,8 +13,7 @@ from fastapi.templating import Jinja2Templates
 from pyrogram.file_id import FileId
 from pyrogram import raw, Client
 from pyrogram.session import Session, Auth
-from pyrogram.enums import ChatType # Yeh line add karein
-from pyrogram.errors import PeerIdInvalid # Yeh line add karein
+from pyrogram.errors import PeerIdInvalid, UserNotParticipant, ChannelPrivate # Yeh errors import karein
 
 from config import Config
 from bot import bot, initialize_clients, multi_clients, work_loads, get_readable_file_size
@@ -27,53 +27,49 @@ async def lifespan(app: FastAPI):
     await bot.start()
     print("Main bot started.")
 
-    # --- DIAGNOSTIC & PERMANENT FIX ---
+    # --- THE REAL PERMANENT FIX ---
+    # Hum bot ko specifically STORAGE_CHANNEL ki jaankari lene ke liye kahenge.
+    # Yeh command (get_chat) bots ke liye allowed hai.
     try:
         print("\n--- Running Channel Access Test ---")
         
-        # Pehle, saare chats ko cache karte hain
-        print("Step 1: Caching all chats the bot is a member of...")
-        async for _ in bot.get_dialogs():
-            pass
-        print("Step 1: Chat caching complete.")
-
-        # Ab, specifically STORAGE_CHANNEL ko access karke dekhte hain
-        print(f"Step 2: Attempting to access STORAGE_CHANNEL ({Config.STORAGE_CHANNEL})...")
+        # Bot ko network se connect hone ke liye 1-2 second ka waqt dete hain.
+        await asyncio.sleep(2)
+        
+        print(f"Attempting to access STORAGE_CHANNEL ({Config.STORAGE_CHANNEL})...")
+        
         chat = await bot.get_chat(Config.STORAGE_CHANNEL)
-        print(f"✅ SUCCESS: Successfully found STORAGE_CHANNEL.")
+        
+        print(f"✅ SUCCESS: Successfully accessed STORAGE_CHANNEL.")
         print(f"   - Channel Title: {chat.title}")
         print(f"   - Channel ID: {chat.id}")
         print("--- Channel Access Test Passed ---\n")
 
-    except PeerIdInvalid:
+    except (PeerIdInvalid, ValueError):
         print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-        print("!!! FATAL ERROR: PeerIdInvalid - The STORAGE_CHANNEL ID is incorrect or the bot is not in the channel.")
+        print("!!! FATAL ERROR: PeerIdInvalid - The STORAGE_CHANNEL ID is incorrect.")
         print(f"!!! Your current STORAGE_CHANNEL ID is: {Config.STORAGE_CHANNEL}")
         print("!!! Please double-check the following:")
-        print("!!! 1. Is the ID 100% correct? For private channels, it MUST start with -100.")
-        print("!!! 2. Has the bot been ADDED to the channel?")
-        print("!!! 3. Is the bot an ADMIN in the channel?")
+        print("!!! 1. Is the ID a valid number? Have you copied it correctly?")
+        print("!!! 2. For private channels, the ID MUST start with -100.")
         print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
-        
-        # Bot ke saare channels ki list print karte hain, taaki aap ID cross-check kar sakein
-        try:
-            print("--- Here is a list of ALL channels the bot is currently in ---")
-            count = 0
-            async for dialog in bot.get_dialogs():
-                if dialog.chat.type == ChatType.CHANNEL:
-                    print(f"- Title: {dialog.chat.title} | ID: {dialog.chat.id}")
-                    count += 1
-            if count == 0:
-                print("The bot is not a member of ANY channels.")
-            print("-----------------------------------------------------------------")
-        except Exception as e:
-            print(f"Could not fetch channel list. Error: {e}")
+        print("Exiting application due to critical configuration error.")
+        sys.exit(1)
 
-        print("\nExiting application due to critical configuration error.")
-        sys.exit(1) # Error ke saath program band kar do
+    except (UserNotParticipant, ChannelPrivate):
+        print("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        print("!!! FATAL ERROR: Bot is not a member of the STORAGE_CHANNEL.")
+        print(f"!!! Your STORAGE_CHANNEL ID is: {Config.STORAGE_CHANNEL}")
+        print("!!! Please make sure you have done the following:")
+        print("!!! 1. ADDED your bot to the channel.")
+        print("!!! 2. PROMOTED the bot to an ADMIN in the channel.")
+        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
+        print("Exiting application due to critical configuration error.")
+        sys.exit(1)
 
     except Exception as e:
         print(f"\n!!! FATAL ERROR: An unexpected error occurred while accessing STORAGE_CHANNEL: {e}")
+        print("!!! This could be a network issue or a problem with bot permissions.")
         print("Exiting application.")
         sys.exit(1)
     # --- FIX KHATAM ---
