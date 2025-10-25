@@ -1,4 +1,4 @@
-# config.py (CLEANED VERSION)
+# config.py (CLEANED AND CORRECTED VERSION)
 
 import os
 from dotenv import load_dotenv
@@ -11,7 +11,9 @@ class Config:
     BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
     OWNER_ID = int(os.environ.get("OWNER_ID", 0))
     
-    STORAGE_CHANNEL = int(os.environ.get("STORAGE_CHANNEL", 0))
+    # --- BADLAV YAHAN HAI ---
+    # Hum ID ko string ki tarah read karenge, integer ki tarah nahi.
+    STORAGE_CHANNEL = os.environ.get("STORAGE_CHANNEL", "") 
     
     BASE_URL = os.environ.get("BASE_URL", "").rstrip('/')
     DATABASE_URL = os.environ.get("DATABASE_URL", "")
