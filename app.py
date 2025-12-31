@@ -209,7 +209,7 @@ async def start_command(client: Client, message: Message):
                 )
                 return
 
-        final_link = f"{Config.REDIRECT_BLOGGER_URL}?id={unique_id}"
+        final_link = f"{Config.BASE_URL}?id={unique_id}"
         reply_text = f"__✅ Verification Successful!\n\nCopy Link:__ `{final_link}`"
         button = InlineKeyboardMarkup([[InlineKeyboardButton("Open Link", url=final_link)]])
         await message.reply_text(reply_text, reply_markup=button, quote=True, disable_web_page_preview=True)
