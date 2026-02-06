@@ -41,39 +41,11 @@ async def lifespan(app: FastAPI):
     print("Starting main Pyrogram bot...")
     await bot.start()
     
-    # --- FIX: POPULATE PEER CACHE (SYNCS DIALOGS) ---
-    # Bots cannot use get_dialogs(), so we removed that.
-    # Instead, we try to fetch 'me' in the channel to verify access.
     
-    # --- DISCOVERY LOGIC ---
-    try:
-        print(f"🔍 Discovery: Attempting to resolve Storage Channel ({Config.STORAGE_CHANNEL})...")
-        # Try getting chat member (me) first - sometimes works better for caching
-        try:
-            await bot.get_chat_member(Config.STORAGE_CHANNEL, "me")
-        except:
-            pass # Fallback to get_chat
-            
-        chat = await bot.get_chat(Config.STORAGE_CHANNEL)
-        print(f"✅ Storage Channel Found: {chat.title} ({chat.id})")
-    except Exception as e:
-        print(f"⚠️ DISCOVERY FAILED: Could not resolve Storage Channel ({Config.STORAGE_CHANNEL}).")
-        print(f"👉 ACTION: Please send a message to the channel so the bot can cache it.")
-        print(f"❌ Error Detail: {e}")
-
-    if Config.FORCE_SUB_CHANNEL:
-        try:
-            print(f"🔍 Discovery: Attempting to resolve Force Sub Channel ({Config.FORCE_SUB_CHANNEL})...")
-            chat = await bot.get_chat(Config.FORCE_SUB_CHANNEL)
-            print(f"✅ Force Sub Channel Found: {chat.title} ({chat.id})")
-        except Exception as e:
-             print(f"⚠️ DISCOVERY FAILED: Could not resolve Force Sub Channel.")
-             print(f"❌ Error Detail: {e}")
-    # --------------------------------------
-
     my_info = await bot.get_me()
     Config.BOT_USERNAME = my_info.username
     print(f"✅ Main Bot [@{Config.BOT_USERNAME}] safaltapoorvak start ho gaya.")
+    print(f"� Note: Channel access will be validated on first use via warmup handler.")
 
     # 3. Set Menu Commands
     # ... (Command Setup Code) ...
