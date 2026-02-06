@@ -4,3 +4,7 @@ tgcrypto
 python-dotenv
 python-magic
 motor
+pymongo
+uvicorn
+jinja2
+aiofiles

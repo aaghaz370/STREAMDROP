@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamDrop | Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --primary-color: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.4);
+            --bg-color: #0f111a;
+            --surface-color: #1a1d2d;
+            --border-color: #2d324d;
+            --text-main: #ffffff;
+            --text-sec: #94a3b8;
+        }
+
+        /* Light Mode Variables */
+        [data-theme="light"] {
+            --primary-color: #4f46e5;
+            --primary-glow: rgba(79, 70, 229, 0.2);
+            --bg-color: #f3f4f6;
+            --surface-color: #ffffff;
+            --border-color: #e5e7eb;
+            --text-main: #111827;
+            --text-sec: #6b7280;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            transition: all 0.3s ease;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .btn-hover {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .btn-hover:active {
+            transform: scale(0.95);
+        }
+
+        /* Search Input */
+        .search-input {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px var(--primary-glow);
+            outline: none;
+        }
+
+        /* Card Hover */
+        .file-card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .file-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary-color);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Loading */
+        .shimmer {
+            background: linear-gradient(90deg, var(--surface-color) 0%, var(--border-color) 50%, var(--surface-color) 100%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="border-b border-[var(--border-color)] bg-[var(--surface-color)]/80 backdrop-blur-xl sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 rounded-xl bg-[var(--primary-color)] flex items-center justify-center text-white shadow-lg shadow-[var(--primary-glow)]">
+                    <i class="ri-folder-shield-2-fill text-xl"></i>
+                </div>
+                <span class="text-xl font-bold tracking-tight">My Files</span>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <p class="hidden md:block text-sm font-medium text-[var(--text-sec)]">Total: <span id="total-count"
+                        class="text-[var(--text-main)]">{{ total_count }}</span></p>
+                <button onclick="toggleTheme()"
+                    class="w-10 h-10 rounded-full border border-[var(--border-color)] flex items-center justify-center hover:bg-[var(--border-color)] btn-hover">
+                    <i id="theme-icon" class="ri-moon-line text-lg"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+
+        <!-- Controls Area -->
+        <div class="flex flex-col md:flex-row gap-4 mb-8 sticky top-20 z-40 py-2">
+            <!-- Search -->
+            <div class="relative flex-1">
+                <i class="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-sec)]"></i>
+                <input type="text" id="search-bar" placeholder="Search files by name..."
+                    class="search-input w-full h-12 rounded-xl pl-12 pr-4 text-sm font-medium">
+            </div>
+
+            <!-- Filters -->
+            <div class="flex gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
+                <select id="sort-filter" onchange="runFilters()"
+                    class="search-input h-12 rounded-xl px-4 text-sm font-medium cursor-pointer min-w-[140px]">
+                    <option value="newest">📅 Newest First</option>
+                    <option value="oldest">🕒 Oldest First</option>
+                    <option value="name_asc">🔤 Name (A-Z)</option>
+                    <option value="name_desc">🔤 Name (Z-A)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- File List Grid -->
+        <div id="file-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <!-- Items injected by JS -->
+            {% for link in links %}
+            <div class="file-card rounded-2xl p-5 relative group" data-name="{{ link.name | lower }}"
+                data-date="{{ link.timestamp }}">
+
+                <!-- Top Row -->
+                <div class="flex items-start justify-between mb-4">
+                    <div
+                        class="w-10 h-10 rounded-lg bg-[var(--bg-color)] flex items-center justify-center text-[var(--primary-color)]">
+                        <i class="ri-file-text-line text-xl"></i>
+                    </div>
+                    <span
+                        class="text-xs font-semibold px-2 py-1 rounded bg-[var(--bg-color)] text-[var(--text-sec)] border border-[var(--border-color)]">
+                        {{ link.size }}
+                    </span>
+                </div>
+
+                <!-- Filename -->
+                <h3 class="font-semibold text-lg leading-tight mb-2 line-clamp-2 min-h-[44px]" title="{{ link.name }}">
+                    {{ link.name }}</h3>
+
+                <!-- Meta -->
+                <div class="flex items-center gap-3 text-xs text-[var(--text-sec)] mb-4">
+                    <span class="flex items-center gap-1"><i class="ri-calendar-line"></i> {{ link.date }}</span>
+                    <span class="flex items-center gap-1"><i class="ri-timer-flash-line"></i> Exp: {{ link.expiry
+                        }}</span>
+                </div>
+
+                <!-- Actions -->
+                <div class="grid grid-cols-2 gap-2">
+                    <a href="{{ link.stream_link }}" target="_blank"
+                        class="btn-hover h-10 rounded-lg bg-[var(--primary-color)] text-white font-medium text-sm flex items-center justify-center gap-2 shadow-lg shadow-[var(--primary-glow)]">
+                        <i class="ri-play-circle-fill"></i> Stream
+                    </a>
+                    <button onclick="copyToClipboard('{{ link.stream_link }}', this)"
+                        class="btn-hover h-10 rounded-lg border border-[var(--border-color)] hover:bg-[var(--bg-color)] font-medium text-sm flex items-center justify-center gap-2 active:bg-green-500/10 active:text-green-500 active:border-green-500">
+                        <i class="ri-file-copy-line"></i> Copy
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden flex-col items-center justify-center py-20 text-center">
+            <div
+                class="w-16 h-16 rounded-full bg-[var(--surface-color)] flex items-center justify-center text-[var(--text-sec)] mb-4">
+                <i class="ri-search-2-line text-2xl"></i>
+            </div>
+            <p class="text-[var(--text-sec)]">No matching files found.</p>
+        </div>
+
+    </main>
+
+    <script>
+        // Init Data
+        let files = Array.from(document.querySelectorAll('.file-card'));
+        const grid = document.getElementById('file-grid');
+        const emptyState = document.getElementById('empty-state');
+        const countLabel = document.getElementById('total-count');
+
+        // Search Logic
+        document.getElementById('search-bar').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            let visibleCount = 0;
+
+            files.forEach(card => {
+                const name = card.dataset.name;
+                if (name.includes(term)) {
+                    card.classList.remove('hidden');
+                    visibleCount++;
+                } else {
+                    card.classList.add('hidden');
+                }
+            });
+
+            // Show empty state if needed
+            if (visibleCount === 0) {
+                grid.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+                emptyState.classList.add('flex');
+            } else {
+                grid.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                emptyState.classList.remove('flex');
+            }
+            countLabel.innerText = visibleCount;
+        });
+
+        // Copy Logic
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text);
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `<i class="ri-check-line"></i> Copied`;
+            btn.classList.add('text-green-500', 'border-green-500');
+
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('text-green-500', 'border-green-500');
+            }, 2000);
+        }
+
+        // Sorting Logic
+        function runFilters() {
+            const sortType = document.getElementById('sort-filter').value;
+
+            const sortedFiles = files.sort((a, b) => {
+                const dateA = parseInt(a.dataset.date);
+                const dateB = parseInt(b.dataset.date);
+                const nameA = a.dataset.name;
+                const nameB = b.dataset.name;
+
+                if (sortType === 'newest') return dateB - dateA;
+                if (sortType === 'oldest') return dateA - dateB;
+                if (sortType === 'name_asc') return nameA.localeCompare(nameB);
+                if (sortType === 'name_desc') return nameB.localeCompare(nameA);
+            });
+
+            // Re-append to grid
+            sortedFiles.forEach(file => grid.appendChild(file));
+        }
+
+        // Theme Toggle
+        function toggleTheme() {
+            const body = document.body;
+            const icon = document.getElementById('theme-icon');
+
+            if (body.getAttribute('data-theme') === 'light') {
+                body.setAttribute('data-theme', 'dark');
+                icon.className = 'ri-moon-line text-lg';
+            } else {
+                body.setAttribute('data-theme', 'light');
+                icon.className = 'ri-sun-line text-lg';
+            }
+        }
+    </script>
+</body>
+
+</html>
