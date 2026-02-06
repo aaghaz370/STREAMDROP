@@ -41,9 +41,18 @@ async def lifespan(app: FastAPI):
     print("Starting main Pyrogram bot...")
     await bot.start()
     
-    # --- FIX: INITIAL CHANNEL DISCOVERY ---
-    # This block aggressively tries to 'see' the required channels on startup.
-    # If it fails, it prints a critical warning but DOES NOT CRASH.
+    # --- FIX: POPULATE PEER CACHE (SYNCS DIALOGS) ---
+    # This acts as a "Force Sync" for the bot to recognize channels it is already in.
+    print("🔄 Syncing Dialogs to Cache Peers...")
+    try:
+        async for dialog in bot.get_dialogs():
+             # Just iterating is enough for Pyrogram to cache the peers
+             pass
+        print("✅ Dialog Sync Complete.")
+    except Exception as e:
+        print(f"⚠️ Dialog Sync Warning: {e}")
+
+    # --- DISCOVERY LOGIC ---
     try:
         print(f"🔍 Discovery: Attempting to resolve Storage Channel ({Config.STORAGE_CHANNEL})...")
         chat = await bot.get_chat(Config.STORAGE_CHANNEL)
