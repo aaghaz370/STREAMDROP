@@ -667,7 +667,7 @@ async def handle_file_upload(message: Message, user_id: int):
              print(f"⚠️ Upload Warning: Copy failed ({e}). Retrying with ID resolve...")
              try:
                  # Resolve Peer Explicitly
-                 await client.get_chat(Config.STORAGE_CHANNEL)
+                 await bot.get_chat(Config.STORAGE_CHANNEL)
                  sent_message = await message.copy(chat_id=Config.STORAGE_CHANNEL)
              except Exception as e2:
                  # If it fails again, tell user to wake up the bot
