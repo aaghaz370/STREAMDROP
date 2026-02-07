@@ -25,7 +25,6 @@ import math
 # Project ki dusri files se important cheezein import karo
 from config import Config
 from database import db
-from subscription import get_plan_status, increment_user_usage
 
 # =====================================================================================
 # --- SETUP: BOT, WEB SERVER, AUR LOGGING ---
@@ -33,51 +32,71 @@ from subscription import get_plan_status, increment_user_usage
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """
+    Yeh function bot ko web server ke saath start aur stop karta hai.
+    """
     print("--- Lifespan: Server chalu ho raha hai... ---")
     
-    # 1. Connect DB
-    await db.connect() 
+    await db.connect()
     
-    # 2. Start Bot
-    print("Starting main Pyrogram bot...")
-    await bot.start()
-    
-    
-    my_info = await bot.get_me()
-    Config.BOT_USERNAME = my_info.username
-    print(f"✅ Main Bot [@{Config.BOT_USERNAME}] safaltapoorvak start ho gaya.")
-    print(f"� Note: Channel access will be validated on first use via warmup handler.")
-
-    # 3. Set Menu Commands
-    # ... (Command Setup Code) ...
-    # --- SET BOT MENU COMMANDS ---
     try:
-        from pyrogram.types import BotCommand
-        await bot.set_bot_commands([
-            BotCommand("start", "Start Bot"),
-            BotCommand("help", "Help & Guide"),
-            BotCommand("showplan", "💎 Premium Plans"),
-            BotCommand("mydata", "📊 My Data & Usage"),
-            BotCommand("allcommands", "📜 All Commands List"),
-            BotCommand("my_links", "My Files")
-        ])
-        print("✅ Bot Commands Menu Set.")
-    except Exception as e:
-        print(f"⚠️ Failed to set bot commands: {e}")
+        print("Starting main Pyrogram bot...")
+        await bot.start()
+        
+        me = await bot.get_me()
+        Config.BOT_USERNAME = me.username
+        print(f"✅ Main Bot [@{Config.BOT_USERNAME}] safaltapoorvak start ho gaya.")
 
-    # 4. Cleanups
-    # Assuming cleanup_channel is defined elsewhere or will be added.
-    # For now, commenting out if not defined to avoid error.
-    # try:
-    #     await cleanup_channel(bot)
-    # except Exception as e:
-    #     print(f"Warning: Channel cleanup fail ho gaya. Error: {e}")
+        # --- SET BOT MENU COMMANDS ---
+        try:
+            from pyrogram.types import BotCommand
+            await bot.set_bot_commands([
+                BotCommand("start", "🏠 Start Bot"),
+                BotCommand("help", "📝 Help & Guide"),
+                BotCommand("showplan", "💎 Premium Plans"),
+                BotCommand("mydata", "📊 My Data & Usage"),
+                BotCommand("allcommands", "📜 All Commands List"),
+                BotCommand("my_links", "🔗 My Files")
+            ])
+            print("✅ Bot Commands Menu Set.")
+        except Exception as e:
+            print(f"Warning: Could not set bot commands: {e}")
+
+        if len(multi_clients) > 1:
+            print(f"✅ Multi-Client Mode Enabled. Total Clients: {len(multi_clients)}")
+
+        # Ensure we know about the channels
+        # force_refresh_dialogs removed as it is not supported for bots
+
+        print(f"Verifying storage channel ({Config.STORAGE_CHANNEL})...")
+        try:
+            await bot.get_chat(Config.STORAGE_CHANNEL)
+            print("✅ Storage channel accessible hai.")
+        except Exception as e:
+            print(f"!!! ERROR: Could not access Storage Channel ({Config.STORAGE_CHANNEL}). Error: {e}")
+            print("👉 ACTION REQUIRED: Please SEND A MESSAGE (e.g. '.') in the Storage Channel NOW so I can find it!")
+
+        if Config.FORCE_SUB_CHANNEL:
+            try:
+                print(f"Verifying force sub channel ({Config.FORCE_SUB_CHANNEL})...")
+                await bot.get_chat(Config.FORCE_SUB_CHANNEL)
+                print("✅ Force Sub channel accessible hai.")
+            except Exception as e:
+                print(f"!!! WARNING: Bot cannot access Force Sub channel ({Config.FORCE_SUB_CHANNEL}). Bot, Force Sub channel mein admin nahi hai ya link galat hai. Error: {e}")
+        
+        try:
+            await cleanup_channel(bot)
+        except Exception as e:
+            print(f"Warning: Channel cleanup fail ho gaya. Error: {e}")
+
+        # --- STARTUP BROADCAST (BACKGROUND) ---
+        # Send restart notification to all users (non-blocking)
+        asyncio.create_task(send_startup_broadcast())
+
+        print("--- Lifespan: Startup safaltapoorvak poora hua. ---")
     
-    # This line was not in the original lifespan but was in the instruction's new code.
-    # Adding it as it seems like a new feature.
-    # asyncio.create_task(db.delete_expired_links_loop())
-
-    print("--- Lifespan: Startup safaltapoorvak poora hua. ---")
+    except Exception as e:
+        print(f"!!! FATAL ERROR: Bot startup ke dauraan error aa gaya: {traceback.format_exc()}")
     
     yield
     
@@ -107,13 +126,7 @@ app.add_middleware(
 # logging.getLogger("uvicorn.access").addFilter(HideDLFilter())
 # --- FIX KHATAM ---
 
-bot = Client(":memory:", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN, in_memory=True) 
-# Note: On Render (Ephemeral Filesystem), 'in_memory=False' creates a .session file that gets deleted on restart/deploy.
-# This causes "Peer ID Invalid" because the new session file is blank every time.
-# Switching to 'in_memory=True' (default) doesn't help persistence either.
-# The REAL solution for Render is using a STRING_SESSION, but we are using a Bot Token.
-# Bot Tokens usually don't need Access Hash caching IF the bot is an Admin.
-# But sometimes Pyrogram struggles. We will rely on the Warmup Handler.
+bot = Client("SimpleStreamBot", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN, in_memory=False)
 multi_clients = {}; work_loads = {}; class_cache = {}
 
 # --- CHANNEL WARMUP HANDLER ---
@@ -434,7 +447,7 @@ Unlock **Unlimited Uploads** & **Longer Link Expiry**!
 
 💡 **How to Buy?**
 Contact Admin to upgrade your plan instantly:
-👤 **Admin:** @RolexSir
+👤 **Admin:** @Univora88
 """
     await message.reply_text(text, quote=True)
 
@@ -660,21 +673,7 @@ async def handle_file_upload(message: Message, user_id: int):
         return
 
     try:
-        # ATTEMPT 1: Direct Copy
-        try:
-             sent_message = await message.copy(chat_id=Config.STORAGE_CHANNEL)
-        except Exception as e:
-             # Retry Logic for Peer ID Invalid
-             print(f"⚠️ Upload Warning: Copy failed ({e}). Retrying with ID resolve...")
-             try:
-                 # Resolve Peer Explicitly
-                 await bot.get_chat(Config.STORAGE_CHANNEL)
-                 sent_message = await message.copy(chat_id=Config.STORAGE_CHANNEL)
-             except Exception as e2:
-                 # If it fails again, tell user to wake up the bot
-                 await message.reply_text(f"❌ **Error:** Bot cannot access Storage Channel.\n\n👉 **Solution:** Go to the Storage Channel and send a message. Then try again.")
-                 print(f"❌ Upload Failed Final: {e2}")
-                 return
+        sent_message = await message.copy(chat_id=Config.STORAGE_CHANNEL)
         unique_id = secrets.token_urlsafe(8)
         
         # Metadata Extraction
@@ -706,11 +705,26 @@ async def handle_file_upload(message: Message, user_id: int):
         # Increment Usage
         await increment_user_usage(user_id)
         
-        # Generate Links
-        # Clean filename for URL
-        safe_file_name = "".join(c for c in file_name if c.isalnum() or c in (' ', '.', '_', '-')).rstrip()
-        page_link = f"{Config.BASE_URL}/show/{unique_id}"
-        dl_link = f"{Config.BASE_URL}/dl/{unique_id}/{safe_file_name}"
+        # Generate Links with Proper URL Encoding
+        from urllib.parse import quote
+        
+        # Validate BASE_URL
+        base_url = Config.BASE_URL.strip()
+        if not base_url:
+            raise ValueError("BASE_URL is not configured. Please set it in environment variables.")
+        
+        # Ensure BASE_URL starts with http:// or https://
+        if not base_url.startswith(('http://', 'https://')):
+            base_url = f"https://{base_url}"
+        
+        # Remove trailing slash
+        base_url = base_url.rstrip('/')
+        
+        # URL-encode the filename to handle special characters
+        encoded_file_name = quote(file_name, safe='')
+        
+        page_link = f"{base_url}/show/{unique_id}"
+        dl_link = f"{base_url}/dl/{unique_id}/{encoded_file_name}"
         
         # Detect Type & Build UI
         buttons = []
@@ -749,15 +763,10 @@ async def handle_file_upload(message: Message, user_id: int):
         buttons.append([InlineKeyboardButton("🌐 UNIVORA SITE", url="https://univora.site")])
         
         # Expire Notice
-        plan_type = status.get('plan_type', 'free')
-        if user_id == Config.OWNER_ID:
-            expire_note = "\n⏳ **Link Expires:** `Never (Admin)`"
-        elif plan_type == 'free':
-            expire_note = "\n⏳ **Link Expires:** `24 Hours`"
-        else:
-            expire_note = f"\n⏳ **Link Expires:** `{status.get('name', 'Premium')}`"
+        expire_note = "\n⏳ **Link Expires:** `24 Hours`" if status['plan_type'] == 'free' else "\n⏳ **Link Expires:** `Premium`"
+        if user_id == Config.OWNER_ID: expire_note = "\n⏳ **Link Expires:** `Never (Admin)`"
 
-        # Final Reply
+        # Final Reply with Buttons (Production Ready)
         await message.reply_text(
             f"**✅ File Safely Stored on Univora Cloud!**\n\n"
             f"**📂 Name:** `{file_name}`\n"
@@ -770,13 +779,19 @@ async def handle_file_upload(message: Message, user_id: int):
             quote=True
         )
     except Exception as e:
-        error_msg = traceback.format_exc()
-        print(f"!!! UPLOAD ERROR !!!")
-        print(f"Error: {str(e)}")
-        print(f"Full Traceback:\n{error_msg}")
+        error_details = traceback.format_exc()
+        print(f"!!! FILE UPLOAD ERROR !!!")
         print(f"User ID: {user_id}")
-        print(f"File Name: {message.document.file_name if message.document else 'No Document'}")
-        await message.reply_text("Sorry, something went wrong. Admin has been notified.")
+        print(f"Error Type: {type(e).__name__}")
+        print(f"Error Message: {str(e)}")
+        print(f"Full Traceback:\n{error_details}")
+        await message.reply_text(
+            f"**⚠️ Upload Failed**\n\n"
+            f"Error: `{type(e).__name__}`\n"
+            f"Details: `{str(e)[:100]}`\n\n"
+            f"Please contact @RolexSir for support.",
+            quote=True
+        )
 
 @bot.on_message(filters.private & (filters.document | filters.video | filters.audio | filters.photo))
 async def file_handler(_, message: Message):
@@ -848,6 +863,83 @@ async def cleanup_channel(c: Client):
             except FloodWait as e: await asyncio.sleep(e.value)
             except Exception as e: print(f"Cleanup Error: {e}")
     except Exception as e: print(f"Cleanup Error: {e}")
+
+async def send_startup_broadcast():
+    """
+    Sends a restart notification to all users when bot starts.
+    Runs in background, doesn't block startup.
+    """
+    try:
+        # Wait 5 seconds for bot to fully initialize
+        await asyncio.sleep(5)
+        
+        print("🔔 Starting Startup Broadcast...")
+        
+        # Get all users from database
+        users = await db.get_all_users()
+        total_users = len(users)
+        
+        if total_users == 0:
+            print("ℹ️ No users to broadcast to.")
+            return
+        
+        # Beautiful restart message
+        restart_message = """
+🔄 **STREAMDROP BOT RESTARTED** 🔄
+
+✅ **Bot is now LIVE and fully operational!**
+
+🚀 **What's New:**
+• Faster file processing
+• Improved streaming performance
+• Enhanced stability
+
+💡 **All your files are safe** and ready to stream!
+
+Need help? Contact: @Univora88
+
+__Powered by Univora | Dev: @rolexsir_8__
+"""
+        
+        success = 0
+        blocked = 0
+        failed = 0
+        
+        # Send to all users
+        for user in users:
+            try:
+                user_id = user["_id"]
+                await bot.send_message(user_id, restart_message)
+                success += 1
+                await asyncio.sleep(0.05)  # Prevent FloodWait (20 msgs/second)
+                
+            except FloodWait as e:
+                print(f"⏳ FloodWait: Sleeping {e.value}s...")
+                await asyncio.sleep(e.value)
+                # Retry after wait
+                try:
+                    await bot.send_message(user_id, restart_message)
+                    success += 1
+                except:
+                    failed += 1
+                    
+            except Exception as e:
+                error_str = str(e).lower()
+                if "blocked" in error_str or "user is deactivated" in error_str:
+                    blocked += 1
+                else:
+                    failed += 1
+        
+        # Final report
+        print(f"✅ Startup Broadcast Complete!")
+        print(f"   └─ Total Users: {total_users}")
+        print(f"   └─ Success: {success}")
+        print(f"   └─ Blocked/Deleted: {blocked}")
+        print(f"   └─ Failed: {failed}")
+        
+    except Exception as e:
+        print(f"⚠️ Startup Broadcast Error: {e}")
+        # Don't crash bot, just log error
 
 # =====================================================================================
 # --- FASTAPI WEB SERVER ---
@@ -1108,101 +1200,7 @@ async def stream_media(r:Request, unique_id: str, fname: str):
     except FileNotFoundError:raise HTTPException(404)
     except Exception:print(traceback.format_exc());raise HTTPException(500)
 
-async def handle_file_upload(message: Message, user_id: int):
-    # Check Access
-    is_allowed, error_data = await check_access(user_id)
-    if not is_allowed:
-        if isinstance(error_data, tuple) and error_data[0] == "FORCE_SUB":
-            invite = error_data[1]
-            await message.reply_text(f"**🔒 Unlock Uploads!**\nJoin [Our Channel]({invite}) to upload files.", quote=True)
-            return
-        else:
-            return
 
-    try:
-        sent_message = await message.copy(chat_id=Config.STORAGE_CHANNEL)
-        unique_id = secrets.token_urlsafe(8)
-        
-        # Metadata Extraction
-        media = message.document or message.video or message.audio or message.photo
-        if message.photo:
-             # Photo handling (highest quality)
-             media = message.photo
-             file_name = f"Photo_{unique_id}.jpg"
-             file_size_bytes = media.file_size
-             mime_type = "image/jpeg"
-        else:
-             file_name = getattr(media, "file_name", "Unknown_File")
-             file_size_bytes = getattr(media, "file_size", 0)
-             mime_type = getattr(media, "mime_type", "application/octet-stream") or "application/octet-stream"
-
-        file_size = get_readable_file_size(file_size_bytes)
-        
-        # Save to DB
-        await db.save_link(unique_id, sent_message.id, {}, file_name, file_size, user_id)
-        
-        # Generate Links
-        # Clean filename for URL
-        safe_file_name = "".join(c for c in file_name if c.isalnum() or c in (' ', '.', '_', '-')).rstrip()
-        page_link = f"{Config.BASE_URL}/show/{unique_id}"
-        dl_link = f"{Config.BASE_URL}/dl/{unique_id}/{safe_file_name}"
-        
-        # Detect Type & Build UI
-        buttons = []
-        status_text = ""
-        
-        if mime_type.startswith("video"):
-            action_verb = "Stream"
-            emoji = "▶️"
-            status_text = f"🎞 **Stream Link:**\n`{page_link}`\n\n⬇️ **Download Link:**\n`{dl_link}`"
-            buttons.append([InlineKeyboardButton(f"{emoji} {action_verb} Online", url=page_link), InlineKeyboardButton("📥 Download", url=dl_link)])
-            
-        elif mime_type.startswith("audio"):
-            action_verb = "Listen"
-            emoji = "🎵"
-            status_text = f"🎵 **Listen Link:**\n`{page_link}`\n\n⬇️ **Download Link:**\n`{dl_link}`"
-            buttons.append([InlineKeyboardButton(f"{emoji} {action_verb} Online", url=page_link), InlineKeyboardButton("📥 Download", url=dl_link)])
-            
-        elif mime_type == "application/pdf":
-            action_verb = "Read"
-            emoji = "📖"
-            # PDF can be viewed in browser via direct link usually, or show page if it embeds pdf
-            status_text = f"📖 **Read Link:**\n`{dl_link}`\n\n⬇️ **Download Link:**\n`{dl_link}`"
-            buttons.append([InlineKeyboardButton(f"{emoji} {action_verb} PDF", url=dl_link), InlineKeyboardButton("📥 Download", url=dl_link)])
-            
-        elif mime_type.startswith("image"):
-            action_verb = "View"
-            emoji = "🖼"
-            status_text = f"🖼 **View Link:**\n`{dl_link}`\n\n⬇️ **Download Link:**\n`{dl_link}`"
-            buttons.append([InlineKeyboardButton(f"{emoji} {action_verb} Image", url=dl_link), InlineKeyboardButton("📥 Download", url=dl_link)])
-            
-        else:
-            action_verb = "Download"
-            status_text = f"⬇️ **Download Link:**\n`{dl_link}`"
-            buttons.append([InlineKeyboardButton("📥 Fast Download", url=dl_link)])
-
-        # Always add Univora Site
-        buttons.append([InlineKeyboardButton("🌐 UNIVORA SITE", url="https://univora.site")])
-        
-        # Button Logic (Always show buttons, assuming production handles URL correctly)
-        # Exception: Only fallback text if truly critical, but for production demand we show buttons.
-        
-        # NOTE: If user hasn't set BASE_URL yet, buttons might fail.
-        # But we assume they will set it on Render.
-        
-        await message.reply_text(
-            f"**✅ File Safely Stored on Univora Cloud!**\n\n"
-            f"**📂 Name:** `{file_name}`\n"
-            f"**💾 Size:** `{file_size}`\n"
-            f"{expire_note}\n\n"
-            f"{status_text}\n\n"
-            f"__Tap the button below for {action_verb.lower()}.__\n"
-            f"__Powered by Univora | Dev: Rolex Sir__",
-            reply_markup=InlineKeyboardMarkup(buttons),
-            quote=True
-        )
-    except Exception as e:
-        print(f"!!! ERROR: {traceback.format_exc()}"); await message.reply_text("Sorry, something went wrong.")
 
 # =====================================================================================
 # --- MAIN EXECUTION BLOCK ---
