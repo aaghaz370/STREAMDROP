@@ -1060,8 +1060,10 @@ async def get_file_details_api(request: Request, unique_id: str):
         "file_size": get_readable_file_size(media.file_size),
         "is_media": mime_type.startswith(("video", "audio")),
         "direct_dl_link": f"{Config.BASE_URL}/dl/{unique_id}/{safe_file_name}",
-        "mx_player_link": f"intent:{Config.BASE_URL}/dl/{unique_id}/{safe_file_name}#Intent;action=android.intent.action.VIEW;type={mime_type};end",
-        "vlc_player_link": f"intent:{Config.BASE_URL}/dl/{unique_id}/{safe_file_name}#Intent;action=android.intent.action.VIEW;type={mime_type};package=org.videolan.vlc;end"
+        "mx_player_link": f"intent:{Config.BASE_URL}/dl/{unique_id}/{safe_file_name}#Intent;package=com.mxtech.videoplayer.ad;type=video/*;end",
+        "vlc_player_link_mobile": f"intent:{Config.BASE_URL}/dl/{unique_id}/{safe_file_name}#Intent;package=org.videolan.vlc;type=video/*;end",
+        "vlc_player_link_pc": f"vlc://{Config.BASE_URL}/dl/{unique_id}/{safe_file_name}",
+        "playit_link": f"playit://playerv2/video?url={Config.BASE_URL}/dl/{unique_id}/{safe_file_name}"
     }
     return response_data
 

@@ -514,15 +514,54 @@
 
                     primaryBtnText = "Download Video";
 
-                    // Buttons
+                    // Device detection for player routing
+                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                    let vlcLink = isMobile ? data.vlc_player_link_mobile : data.vlc_player_link_pc;
+                    let mxLink = data.mx_player_link;
+                    let playitLink = data.playit_link;
+
+                    // Download Button (Full Width)
                     buttons.innerHTML += `
-                        <a href="${data.direct_dl_link}" download class="btn-hover bg-[var(--primary-color)] rounded-xl py-4 flex items-center justify-center gap-3 text-white font-bold shadow-lg shadow-[var(--primary-glow)] hover:brightness-110">
+                        <a href="${data.direct_dl_link}" download class="col-span-1 md:col-span-2 btn-hover bg-[var(--primary-color)] rounded-xl py-4 flex items-center justify-center gap-3 text-white font-bold shadow-lg shadow-[var(--primary-glow)] hover:brightness-110">
                             <i class="${primaryBtnIcon} text-xl"></i> ${primaryBtnText}
                         </a>
-                        <a href="${data.vlc_player_link}" class="btn-hover bg-[var(--surface-color)] border border-[var(--border-color)] rounded-xl py-4 flex items-center justify-center gap-2 font-semibold text-[var(--text-main)] hover:bg-[var(--primary-color)] hover:text-white hover:border-transparent transition-colors">
-                            <i class="ri-play-circle-line text-xl"></i> Open in VLC
+                    `;
+
+                    // App-specific Buttons Box
+                    // Wrap in a div that spans full width but displays grid
+                    const appsGrid = document.createElement("div");
+                    appsGrid.className = "col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3 mt-2";
+
+                    // 1. VLC Button (Available for Mobile & PC)
+                    appsGrid.innerHTML += `
+                        <a href="${vlcLink}" class="btn-hover bg-[var(--surface-color)] border border-orange-500/30 rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-orange-500 hover:bg-orange-500 hover:text-white transition-colors shadow-sm">
+                            <i class="ri-play-circle-fill text-xl"></i> Open in VLC
                         </a>
                     `;
+
+                    // 2. PlayIt & MX Player (Device Specific)
+                    if (isMobile) {
+                        appsGrid.innerHTML += `
+                            <a href="${mxLink}" class="btn-hover bg-[var(--surface-color)] border border-blue-500/30 rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-blue-500 hover:bg-blue-500 hover:text-white transition-colors shadow-sm">
+                                <i class="ri-play-circle-fill text-xl"></i> MX Player
+                            </a>
+                            <a href="${playitLink}" class="btn-hover bg-[var(--surface-color)] border border-green-500/30 rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-green-500 hover:bg-green-500 hover:text-white transition-colors shadow-sm">
+                                <i class="ri-play-circle-fill text-xl"></i> PlayIt
+                            </a>
+                        `;
+                    } else {
+                        // Laptop PC users see disabled buttons with alert
+                        appsGrid.innerHTML += `
+                            <button onclick="alert('⚠️ MX Player is an Android/iOS App.\\n\\nFor laptops, please use VLC Player or watch in the browser directly.')" class="btn-hover bg-[var(--surface-color)] border border-[var(--border-color)] rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-[var(--text-sec)] opacity-60 hover:opacity-100 transition-colors">
+                                <i class="ri-information-line text-xl"></i> MX Player
+                            </button>
+                            <button onclick="alert('⚠️ PlayIt is an Android/iOS App.\\n\\nFor laptops, please use VLC Player or watch in the browser directly.')" class="btn-hover bg-[var(--surface-color)] border border-[var(--border-color)] rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-[var(--text-sec)] opacity-60 hover:opacity-100 transition-colors">
+                                <i class="ri-information-line text-xl"></i> PlayIt
+                            </button>
+                        `;
+                    }
+
+                    buttons.appendChild(appsGrid);
 
                 }
                 // 3. PDF
