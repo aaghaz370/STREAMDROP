@@ -1029,41 +1029,45 @@ async def dashboard_page(request: Request, user_id: int, token: str):
          raise HTTPException(status_code=403, detail="Access Denied")
 @app.get("/api/file/{unique_id}", response_class=JSONResponse)
 async def get_file_details_api(request: Request, unique_id: str):
-    # db.get_link automatically checks expiry and returns None if expired
-    message_id, backups = await db.get_link(unique_id)
+    # db.get_link_full directly returns data without Telegram API, preventing "Access Denied" on refresh due to FloodWaits
+    link_data = await db.get_link_full(unique_id)
     
-    if not message_id:
-        # Check if it was because of expiry or just invalid (Optional refinement)
-        # For now, uniform 404 is fine as Frontend handles it.
+    if not link_data:
         raise HTTPException(status_code=404, detail="Link expired or invalid.")
-    main_bot = multi_clients.get(0)
-    if not main_bot:
-        # Fallback: If global bot is available, use it (Single Client Mode)
-        if bot:
-            print("DEBUG: multi_clients[0] missing, using global 'bot' fallback.")
-            main_bot = bot
-        else:
-            print(f"DEBUG: Critical - Both multi_clients[0] and global 'bot' are missing. keys={list(multi_clients.keys())}")
-            raise HTTPException(status_code=503, detail="Bot is not ready.")
-    try:
-        message = await main_bot.get_messages(Config.STORAGE_CHANNEL, message_id)
-    except Exception:
-        raise HTTPException(status_code=404, detail="File not found on Telegram.")
-    media = message.document or message.video or message.audio
-    if not media:
-        raise HTTPException(status_code=404, detail="Media not found in the message.")
-    file_name = media.file_name or "file"
+    
+    file_name = link_data.get("file_name", "file")
+    file_size = link_data.get("file_size", "Unknown Size")
+    
+    import mimetypes
+    mime_type, _ = mimetypes.guess_type(file_name)
+    mime_type = mime_type or "application/octet-stream"
+    
     safe_file_name = "".join(c for c in file_name if c.isalnum() or c in (' ', '.', '_', '-')).rstrip()
-    mime_type = media.mime_type or "application/octet-stream"
+    
+    # URL Encoding for streaming links
+    from urllib.parse import quote
+    encoded_file_name = quote(file_name, safe='')
+    direct_dl_link = f"{Config.BASE_URL}/dl/{unique_id}/{encoded_file_name}"
+    
+    # Format intents correctly
+    # VLC mobile needs specific action and scheme
+    try:
+        scheme, path = direct_dl_link.split("://", 1)
+    except ValueError:
+        scheme, path = "http", direct_dl_link
+        
+    vlc_mobile = f"intent://{path}#Intent;scheme={scheme};action=android.intent.action.VIEW;package=org.videolan.vlc;type=video/*;end;"
+    mx_mobile = f"intent://{path}#Intent;scheme={scheme};action=android.intent.action.VIEW;package=com.mxtech.videoplayer.ad;type=video/*;end;"
+    
     response_data = {
         "file_name": file_name,
-        "file_size": get_readable_file_size(media.file_size),
+        "file_size": file_size,
         "is_media": mime_type.startswith(("video", "audio")),
-        "direct_dl_link": f"{Config.BASE_URL}/dl/{unique_id}/{safe_file_name}",
-        "mx_player_link": f"intent:{Config.BASE_URL}/dl/{unique_id}/{safe_file_name}#Intent;package=com.mxtech.videoplayer.ad;type=video/*;end",
-        "vlc_player_link_mobile": f"intent:{Config.BASE_URL}/dl/{unique_id}/{safe_file_name}#Intent;package=org.videolan.vlc;type=video/*;end",
-        "vlc_player_link_pc": f"vlc://{Config.BASE_URL}/dl/{unique_id}/{safe_file_name}",
-        "playit_link": f"playit://playerv2/video?url={Config.BASE_URL}/dl/{unique_id}/{safe_file_name}"
+        "direct_dl_link": direct_dl_link,
+        "mx_player_link": mx_mobile,
+        "vlc_player_link_mobile": vlc_mobile,
+        "vlc_player_link_pc": f"vlc://{direct_dl_link}",
+        "playit_link": f"playit://playerv2/video?url={direct_dl_link}"
     }
     return response_data
 

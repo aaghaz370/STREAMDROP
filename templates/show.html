@@ -532,12 +532,20 @@
                     const appsGrid = document.createElement("div");
                     appsGrid.className = "col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3 mt-2";
 
-                    // 1. VLC Button (Available for Mobile & PC)
-                    appsGrid.innerHTML += `
-                        <a href="${vlcLink}" class="btn-hover bg-[var(--surface-color)] border border-orange-500/30 rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-orange-500 hover:bg-orange-500 hover:text-white transition-colors shadow-sm">
-                            <i class="ri-play-circle-fill text-xl"></i> Open in VLC
-                        </a>
-                    `;
+                    // 1. VLC Button
+                    if (isMobile) {
+                        appsGrid.innerHTML += `
+                            <a href="${vlcLink}" class="btn-hover bg-[var(--surface-color)] border border-orange-500/30 rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-orange-500 hover:bg-orange-500 hover:text-white transition-colors shadow-sm">
+                                <i class="ri-play-circle-fill text-xl"></i> Open in VLC
+                            </a>
+                        `;
+                    } else {
+                        appsGrid.innerHTML += `
+                            <button onclick="copyVlcUrl('${data.direct_dl_link}')" class="btn-hover bg-[var(--surface-color)] border border-orange-500/30 rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-orange-500 hover:bg-orange-500 hover:text-white transition-colors shadow-sm">
+                                <i class="ri-play-circle-fill text-xl"></i> Stream in VLC
+                            </button>
+                        `;
+                    }
 
                     // 2. PlayIt & MX Player (Device Specific)
                     if (isMobile) {
@@ -614,6 +622,14 @@
                 document.getElementById('loader-state').classList.add('hidden');
                 document.getElementById('error-state').classList.remove('hidden');
             }
+        }
+
+        function copyVlcUrl(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert("✅ Stream Link Copied!\n\nTo view in VLC on PC:\n1. Open VLC Media Player\n2. Go to Media > Open Network Stream (Ctrl+N)\n3. Paste the copied link and click Play!");
+            }).catch(() => {
+                alert("Failed to copy link. Please manually copy the URL from Download Video button.");
+            });
         }
 
         init();

@@ -63,6 +63,16 @@ class Database:
             return link["msg_id"], link.get("backups", {})
         return None, None
 
+    async def get_link_full(self, unique_id):
+        link = await self.col.find_one({"_id": unique_id})
+        if link:
+            # Check Expiry
+            expiry = link.get("expiry_date")
+            if expiry and expiry < datetime.datetime.now():
+                return None
+            return link
+        return None
+
     # --- SUBSCRIPTION METHODS ---
 
     async def get_user_data(self, user_id):
