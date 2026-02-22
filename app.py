@@ -729,6 +729,10 @@ async def handle_file_upload(message: Message, user_id: int):
         # Ensure BASE_URL starts with http:// or https://
         if not base_url.startswith(('http://', 'https://')):
             base_url = f"https://{base_url}"
+            
+        # Force HTTPS for production domains to prevent Mixed Content errors in iframes
+        if base_url.startswith("http://") and "localhost" not in base_url and "127.0.0.1" not in base_url:
+            base_url = base_url.replace("http://", "https://", 1)
         
         # Remove trailing slash
         base_url = base_url.rstrip('/')
@@ -1049,15 +1053,21 @@ async def get_file_details_api(request: Request, unique_id: str):
     
     if not link_data:
         raise HTTPException(status_code=404, detail="Link expired or invalid.")
-    
-    file_name = link_data.get("file_name", "file")
-    file_size = link_data.get("file_size", "Unknown Size")
+    file_name = link_data.get("file_name")
+    if not file_name:
+        file_name = "file"
+        
+    file_size = link_data.get("file_size")
+    if not file_size:
+        file_size = "Unknown Size"
     
     import mimetypes
     mime_type, _ = mimetypes.guess_type(file_name)
     mime_type = mime_type or "application/octet-stream"
     
     safe_file_name = "".join(c for c in file_name if c.isalnum() or c in (' ', '.', '_', '-')).rstrip()
+    if not safe_file_name:
+        safe_file_name = "file"
     
     # URL Encoding for streaming links
     from urllib.parse import quote
