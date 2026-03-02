@@ -3,107 +3,329 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>StreamDrop Premium</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <meta name="description" content="StreamDrop — Secure media streaming.">
+    <title>StreamDrop</title>
 
-    <!-- Tailwind CSS -->
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
-
     <!-- Plyr CSS -->
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
-        rel="stylesheet">
-
-    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
+    <!-- React + Babel -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Remix Icons -->
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            /* Night Mode (Default) */
-            --bg-color: #000000;
-            --surface-color: #111111;
-            --primary-color: #ff0000;
-            --primary-glow: rgba(255, 0, 0, 0.4);
-            --text-main: #ffffff;
-            --text-sec: #aaaaaa;
-            --border-color: #333333;
-            --glass-bg: rgba(20, 20, 20, 0.7);
+            --bg: #050505;
+            --surface: #0d0d0d;
+            --surface-2: #141414;
+            --border: #1e1e1e;
+            --red: #e5252a;
+            --red-glow: rgba(229, 37, 42, 0.3);
+            --red-dim: rgba(229, 37, 42, 0.07);
+            --text: #f0f0f0;
+            --muted: #606060;
+            --muted-2: #2a2a2a;
         }
 
-        [data-theme="day"] {
-            /* Day Mode (Cream) */
-            --bg-color: #fcfbf7;
-            /* Creamy White */
-            --surface-color: #ffffff;
-            --primary-color: #d97706;
-            /* Amber/Gold */
-            --primary-glow: rgba(217, 119, 6, 0.3);
-            --text-main: #1f2937;
-            --text-sec: #6b7280;
-            --border-color: #e5e7eb;
-            --glass-bg: rgba(255, 255, 255, 0.8);
+        [data-theme="light"] {
+            --bg: #f7f7f8;
+            --surface: #ffffff;
+            --surface-2: #f1f1f3;
+            --border: #e2e2e7;
+            --red: #dc1f24;
+            --red-glow: rgba(220, 31, 36, 0.18);
+            --red-dim: rgba(220, 31, 36, 0.05);
+            --text: #111111;
+            --muted: #888888;
+            --muted-2: #d8d8dc;
         }
 
-        body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            transition: background-color 0.5s ease, color 0.5s ease;
-            overflow-x: hidden;
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body,
+        #root {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
             -webkit-tap-highlight-color: transparent;
+            transition: background 0.4s, color 0.37s;
+            overflow-x: hidden;
         }
 
-        /* Abstract Background blobs */
-        .blob {
+        /* Ambient blobs */
+        .orb {
             position: fixed;
             border-radius: 50%;
-            filter: blur(80px);
-            z-index: -1;
-            opacity: 0.4;
-            transition: background 0.5s ease;
+            filter: blur(90px);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.22;
         }
 
-        .blob-1 {
-            top: -10%;
-            left: -10%;
-            width: 500px;
-            height: 500px;
-            background: var(--primary-glow);
-            animation: float 10s infinite alternate;
+        .orb-1 {
+            width: 55vw;
+            height: 55vw;
+            top: -20%;
+            left: -15%;
+            background: var(--red);
+            animation: drift 14s ease-in-out infinite alternate;
         }
 
-        .blob-2 {
-            bottom: -10%;
+        .orb-2 {
+            width: 35vw;
+            height: 35vw;
+            bottom: -15%;
             right: -10%;
-            width: 400px;
-            height: 400px;
-            background: #222;
-            animation: float 12s infinite alternate-reverse;
+            background: #1a0000;
+            animation: drift 18s ease-in-out infinite alternate-reverse;
         }
 
-        @keyframes float {
+        @keyframes drift {
             0% {
                 transform: translate(0, 0);
             }
 
             100% {
-                transform: translate(30px, 30px);
+                transform: translate(22px, 32px);
             }
         }
 
-        .glass-card {
-            background: var(--glass-bg);
+        /* Glass */
+        .glass {
+            background: rgba(13, 13, 13, 0.72);
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
-            border: 1px solid var(--border-color);
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
         }
 
-        /* Custom Scrollbar */
+        [data-theme="light"] .glass {
+            background: rgba(255, 255, 255, 0.82);
+        }
+
+        /* Card reveal */
+        @keyframes revealCard {
+            from {
+                opacity: 0;
+                transform: translateY(28px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card-anim {
+            animation: revealCard 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        /* Loader dots */
+        .dot {
+            display: inline-block;
+            border-radius: 50%;
+            background: var(--red);
+            animation: dotBounce 1.4s infinite ease-in-out both;
+        }
+
+        .dot-1 {
+            animation-delay: -0.32s;
+        }
+
+        .dot-2 {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes dotBounce {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0.1);
+                opacity: 0.4;
+            }
+
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Plyr */
+        .plyr {
+            border-radius: 16px;
+            --plyr-color-main: var(--red);
+            --plyr-video-background: #000;
+            --plyr-menu-background: #111;
+            --plyr-menu-color: #fff;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .plyr--video {
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 0 20px;
+            height: 48px;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            white-space: nowrap;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn:active {
+            transform: scale(0.92);
+        }
+
+        .btn-primary {
+            background: var(--red);
+            color: #fff;
+            box-shadow: 0 4px 20px var(--red-glow);
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.1);
+            box-shadow: 0 6px 28px var(--red-glow);
+        }
+
+        .btn-outline {
+            background: var(--surface-2);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .btn-icon {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            background: var(--surface-2);
+            color: var(--muted);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s, transform 0.15s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .btn-icon:hover {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .btn-icon:active {
+            transform: scale(0.88);
+        }
+
+        /* App Stream buttons */
+        .stream-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            height: 42px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid var(--border);
+            background: var(--surface-2);
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
+            text-decoration: none;
+            font-family: 'Inter', sans-serif;
+            color: var(--muted);
+        }
+
+        .stream-btn:active {
+            transform: scale(0.91);
+        }
+
+        .stream-btn.vlc {
+            color: #fb923c;
+            border-color: rgba(251, 146, 60, 0.25);
+        }
+
+        .stream-btn.vlc:hover {
+            background: rgba(251, 146, 60, 0.09);
+            border-color: #fb923c;
+        }
+
+        .stream-btn.mx {
+            color: #60a5fa;
+            border-color: rgba(96, 165, 250, 0.25);
+        }
+
+        .stream-btn.mx:hover {
+            background: rgba(96, 165, 250, 0.09);
+            border-color: #60a5fa;
+        }
+
+        .stream-btn.playit {
+            color: #34d399;
+            border-color: rgba(52, 211, 153, 0.25);
+        }
+
+        .stream-btn.playit:hover {
+            background: rgba(52, 211, 153, 0.09);
+            border-color: #34d399;
+        }
+
+        .stream-btn.dim {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* Badge */
+        .badge-tag {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            padding: 3px 9px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            background: var(--surface-2);
+            text-transform: uppercase;
+        }
+
+        /* Scrollbar */
         ::-webkit-scrollbar {
-            width: 6px;
+            width: 5px;
         }
 
         ::-webkit-scrollbar-track {
@@ -111,545 +333,388 @@
         }
 
         ::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 10px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: var(--primary-color);
-        }
-
-        /* Plyr Overrides */
-        .plyr {
-            border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            --plyr-color-main: var(--primary-color);
-            --plyr-video-background: var(--surface-color);
-            --plyr-menu-background: var(--surface-color);
-            --plyr-menu-color: var(--text-main);
-        }
-
-        /* Loaders */
-        .loader-dots {
-            display: inline-flex;
-            gap: 4px;
-        }
-
-        .loader-dots span {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--primary-color);
-            animation: bounce 1.4s infinite ease-in-out both;
-        }
-
-        .loader-dots span:nth-child(1) {
-            animation-delay: -0.32s;
-        }
-
-        .loader-dots span:nth-child(2) {
-            animation-delay: -0.16s;
-        }
-
-        @keyframes bounce {
-
-            0%,
-            80%,
-            100% {
-                transform: scale(0);
-            }
-
-            40% {
-                transform: scale(1);
-            }
-        }
-
-        /* Button Hover Effects */
-        .btn-hover {
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .btn-hover:active {
-            transform: scale(0.96);
-        }
-
-        /* Selection */
-        ::selection {
-            background: var(--primary-color);
-            color: white;
+            background: var(--border);
+            border-radius: 99px;
         }
     </style>
 </head>
 
-<body class="flex flex-col min-h-screen items-center justify-center p-4">
+<body>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div id="root"></div>
 
-    <!-- Background Blobs -->
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
+    <!-- Plyr (needed before React mounts) -->
+    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 
-    <!-- Theme Toggle (Floating) -->
-    <button onclick="toggleTheme()"
-        class="fixed top-6 right-6 z-50 p-3 rounded-full glass-card hover:brightness-110 transition-all shadow-lg active:scale-90 group">
-        <i class="ri-moon-line text-xl group-[.day]:hidden"></i>
-        <i class="ri-sun-line text-xl hidden group-[.day]:block text-yellow-500"></i>
-    </button>
+    <script type="text/babel">
+        const { useState, useEffect, useCallback, useRef } = React;
 
-    <!-- Main Card -->
-    <div class="glass-card rounded-[32px] w-full max-w-[1000px] overflow-hidden opacity-0 translate-y-8 transition-all duration-700 ease-out"
-        id="main-content">
+        const BASE_URL = window.location.origin;
+        const FILE_ID = window.location.pathname.split('/').pop();
+        const urlParams = new URLSearchParams(window.location.search);
+        const IS_ADMIN = urlParams.get('admin') === 'true';
 
-        <!-- Navbar -->
-        <div class="border-b border-[var(--border-color)] p-6 md:p-8 flex items-center justify-between">
-            <div class="flex items-center gap-4">
-                <div
-                    class="w-12 h-12 rounded-2xl bg-[var(--primary-color)] flex items-center justify-center text-white text-2xl shadow-lg shadow-[var(--primary-glow)]">
-                    <i class="ri-play-fill"></i>
+        /* ─── Loader ──────────────────────────────────────────── */
+        function Loader() {
+            return (
+                <div className="flex flex-col items-center justify-center py-24 gap-5">
+                    <div style={{ display: 'inline-flex', gap: '6px' }}>
+                        <span className="dot dot-1" style={{ width: 10, height: 10 }}></span>
+                        <span className="dot dot-2" style={{ width: 10, height: 10 }}></span>
+                        <span className="dot" style={{ width: 10, height: 10 }}></span>
+                    </div>
+                    <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', color: 'var(--muted)', textTransform: 'uppercase' }}>
+                        Fetching Stream
+                    </p>
                 </div>
+            );
+        }
+
+        /* ─── Error ───────────────────────────────────────────── */
+        function ErrorState() {
+            return (
+                <div className="flex flex-col items-center justify-center py-24 gap-5 text-center">
+                    <div style={{ position: 'relative' }}>
+                        <div style={{
+                            position: 'absolute', inset: '-8px',
+                            background: 'rgba(229,37,42,0.15)',
+                            borderRadius: '50%', filter: 'blur(20px)'
+                        }} />
+                        <div className="relative w-20 h-20 rounded-2xl flex items-center justify-center"
+                            style={{ background: 'var(--surface-2)', border: '1px solid rgba(229,37,42,0.25)' }}>
+                            <i className="ri-lock-2-line text-[40px]" style={{ color: 'var(--red)' }}></i>
+                        </div>
+                    </div>
+                    <div>
+                        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Access Denied</h2>
+                        <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, maxWidth: 280, margin: '0 auto' }}>
+                            This link has expired or is no longer valid. Request a new one from the bot.
+                        </p>
+                    </div>
+                    <a href="https://t.me/STREAM_DROP_BOT" target="_blank" rel="noreferrer" className="btn btn-outline">
+                        <i className="ri-send-plane-fill text-lg"></i> Open Telegram Bot
+                    </a>
+                </div>
+            );
+        }
+
+        /* ─── Icon Button ─────────────────────────────────────── */
+        function IconBtn({ icon, title, onClick, successIcon, successColor }) {
+            const [active, setActive] = useState(false);
+            const handle = useCallback(() => {
+                onClick?.();
+                if (successIcon) { setActive(true); setTimeout(() => setActive(false), 1800); }
+            }, [onClick, successIcon]);
+
+            return (
+                <button className="btn-icon" title={title} onClick={handle}
+                    style={active ? { borderColor: successColor || '#10b981', color: successColor || '#10b981' } : {}}>
+                    <i className={`${active && successIcon ? successIcon : icon} text-base`}></i>
+                </button>
+            );
+        }
+
+        /* ─── Video Player ────────────────────────────────────── */
+        function VideoPlayer({ src }) {
+            const containerRef = useRef(null);
+            const playerRef = useRef(null);
+            const [loading, setLoading] = useState(true);
+
+            useEffect(() => {
+                if (!containerRef.current) return;
+                const video = document.createElement('video');
+                video.src = src;
+                video.controls = true;
+                video.playsInline = true;
+                video.crossOrigin = 'anonymous';
+                video.style.cssText = 'width:100%;height:100%;display:block;';
+                containerRef.current.appendChild(video);
+
+                const p = new Plyr(video, {
+                    controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
+                    keyboard: { focused: true, global: false },
+                    resetOnEnd: true,
+                });
+                playerRef.current = p;
+                p.on('ready', () => setLoading(false));
+                p.on('canplay', () => setLoading(false));
+                p.on('playing', () => setLoading(false));
+
+                return () => { try { p.destroy(); } catch { } };
+            }, [src]);
+
+            return (
+                <div style={{ position: 'relative', width: '100%', background: '#000', borderRadius: 16, overflow: 'hidden' }}>
+                    {loading && (
+                        <div style={{
+                            position: 'absolute', inset: 0, zIndex: 10,
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                            background: 'rgba(0,0,0,0.92)', gap: 12
+                        }}>
+                            <div style={{ display: 'inline-flex', gap: '6px' }}>
+                                <span className="dot dot-1" style={{ width: 9, height: 9 }}></span>
+                                <span className="dot dot-2" style={{ width: 9, height: 9 }}></span>
+                                <span className="dot" style={{ width: 9, height: 9 }}></span>
+                            </div>
+                            <p style={{ fontSize: 10, fontWeight: 700, color: '#555', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Loading</p>
+                        </div>
+                    )}
+                    <div ref={containerRef}></div>
+                </div>
+            );
+        }
+
+        /* ─── Audio Player ────────────────────────────────────── */
+        function AudioPlayer({ src, name }) {
+            const audioRef = useRef(null);
+
+            useEffect(() => {
+                if (!audioRef.current) return;
+                const p = new Plyr(audioRef.current, {
+                    controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume'],
+                    autoplay: false,
+                });
+                return () => { try { p.destroy(); } catch { } };
+            }, [src]);
+
+            return (
+                <div className="rounded-2xl p-5" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                    <div className="flex items-center gap-4 mb-5">
+                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
+                            style={{ background: 'var(--red)', boxShadow: '0 6px 20px var(--red-glow)' }}>
+                            <i className="ri-music-2-fill text-3xl text-white"></i>
+                        </div>
+                        <div className="min-w-0">
+                            <p className="font-semibold text-sm truncate">{name}</p>
+                            <p style={{ fontSize: 12, color: 'var(--muted)' }}>Audio Track</p>
+                        </div>
+                    </div>
+                    <audio ref={audioRef} controls crossOrigin="anonymous" preload="metadata" style={{ display: 'none' }}>
+                        <source src={src} />
+                    </audio>
+                </div>
+            );
+        }
+
+        /* ─── App Stream Buttons ──────────────────────────────── */
+        function StreamButtons({ data, isMobile }) {
+            const copyVlc = useCallback(() => {
+                navigator.clipboard.writeText(data.direct_dl_link).then(() => {
+                    alert('Stream URL copied.\n\nTo play in VLC:\n1. Open VLC\n2. Media > Open Network Stream\n3. Paste the URL and play.');
+                });
+            }, [data.direct_dl_link]);
+
+            if (isMobile) {
+                return (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                        <a href={data.vlc_player_link_mobile} className="stream-btn vlc">
+                            <i className="ri-play-circle-fill text-xl"></i> VLC
+                        </a>
+                        <a href={data.mx_player_link} className="stream-btn mx">
+                            <i className="ri-play-circle-fill text-xl"></i> MX
+                        </a>
+                        <a href={data.playit_link} className="stream-btn playit">
+                            <i className="ri-play-circle-fill text-xl"></i> PlayIt
+                        </a>
+                    </div>
+                );
+            }
+
+            return (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                    <button onClick={copyVlc} className="stream-btn vlc">
+                        <i className="ri-play-circle-fill text-xl"></i> VLC (PC)
+                    </button>
+                    <button onClick={() => alert('MX Player is a mobile-only app.')} className="stream-btn dim">
+                        <i className="ri-information-line text-xl"></i> MX Player
+                    </button>
+                    <button onClick={() => alert('PlayIt is a mobile-only app.')} className="stream-btn dim">
+                        <i className="ri-information-line text-xl"></i> PlayIt
+                    </button>
+                </div>
+            );
+        }
+
+        /* ─── Embed Section ───────────────────────────────────── */
+        function EmbedSection({ embedLink }) {
+            const code = `<iframe src="${embedLink}" width="100%" height="560" frameborder="0" allowfullscreen></iframe>`;
+            const [copied, setCopied] = useState(false);
+            const handleCopy = () => {
+                navigator.clipboard.writeText(code);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1800);
+            };
+            return (
+                <div style={{ marginTop: 20, padding: 16, borderRadius: 16, background: 'var(--red-dim)', border: '1px solid rgba(229,37,42,0.18)' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <i className="ri-code-s-slash-line"></i> Embed Code — Admin
+                    </p>
+                    <div style={{ position: 'relative' }}>
+                        <textarea readOnly value={code}
+                            style={{ width: '100%', height: 60, background: '#000', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', fontSize: 11, color: '#f0f0f0', fontFamily: 'monospace', resize: 'none', outline: 'none' }} />
+                        <button onClick={handleCopy}
+                            style={{ position: 'absolute', top: 8, right: 8, padding: '4px 12px', borderRadius: 8, background: copied ? '#10b981' : 'var(--red)', color: '#fff', fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'background 0.2s' }}>
+                            {copied ? <i className="ri-check-line"></i> : <i className="ri-clipboard-line"></i>}
+                            &nbsp;{copied ? 'Copied' : 'Copy'}
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        /* ─── Success Content ─────────────────────────────────── */
+        function SuccessContent({ data }) {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            const isAudio = data.is_media && data.file_name.match(/\.(mp3|aac|wav|flac|m4a|ogg)$/i);
+            const isPDF = data.file_name.match(/\.pdf$/i);
+            const isImage = data.file_name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
+            const isVideo = data.is_media && !isAudio;
+
+            let fileType = 'FILE';
+            let fileIcon = 'ri-file-3-line';
+            if (isAudio) { fileType = 'AUDIO'; fileIcon = 'ri-music-2-line'; }
+            else if (isVideo) { fileType = 'VIDEO'; fileIcon = 'ri-film-line'; }
+            else if (isPDF) { fileType = 'PDF'; fileIcon = 'ri-file-pdf-2-line'; }
+            else if (isImage) { fileType = 'IMAGE'; fileIcon = 'ri-image-2-line'; }
+
+            return (
                 <div>
-                    <h1 class="text-2xl font-bold tracking-tight">StreamDrop</h1>
-                    <div class="flex items-center gap-2 text-xs font-medium text-[var(--text-sec)]">
-                        <span class="px-2 py-0.5 rounded-full border border-[var(--border-color)]">SECURE</span>
-                        <span class="px-2 py-0.5 rounded-full border border-[var(--border-color)]">ENCRYPTED</span>
-                    </div>
-                </div>
-            </div>
-            <!-- Size Badge -->
-            <div id="size-badge" class="hidden md:flex flex-col items-end">
-                <span class="text-xs text-[var(--text-sec)] uppercase tracking-wider font-semibold">File Size</span>
-                <span class="text-lg font-bold" id="size-text">...</span>
-            </div>
-        </div>
+                    {/* Media Area */}
+                    {isAudio && <div style={{ marginBottom: 20 }}><AudioPlayer src={data.direct_dl_link} name={data.file_name} /></div>}
+                    {isVideo && <div style={{ marginBottom: 20 }}><VideoPlayer src={data.direct_dl_link} /></div>}
+                    {isPDF && (
+                        <div style={{ height: 520, background: 'var(--surface-2)', borderRadius: 16, overflow: 'hidden', marginBottom: 20, border: '1px solid var(--border)' }}>
+                            <iframe src={data.direct_dl_link} style={{ width: '100%', height: '100%', border: 'none' }}></iframe>
+                        </div>
+                    )}
+                    {isImage && (
+                        <div style={{ background: 'var(--surface-2)', borderRadius: 16, padding: 16, marginBottom: 20, textAlign: 'center', border: '1px solid var(--border)' }}>
+                            <img src={data.direct_dl_link} alt={data.file_name} style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', borderRadius: 12 }} />
+                        </div>
+                    )}
 
-        <!-- Media Area -->
-        <div class="p-6 md:p-10">
-
-            <!-- Loading State -->
-            <div id="loader-state" class="flex flex-col items-center justify-center py-20 space-y-6">
-                <div class="loader-dots scale-150"><span></span><span></span><span></span></div>
-                <p class="text-sm font-medium tracking-widest uppercase text-[var(--text-sec)] animate-pulse">Retrieving
-                    Metadata...</p>
-            </div>
-
-            <!-- Error State -->
-            <div id="error-state" class="hidden flex-col items-center justify-center py-24 text-center">
-                <div class="relative w-24 h-24 mb-6 group">
-                    <div class="absolute inset-0 bg-red-500/20 blur-xl rounded-full animate-pulse"></div>
-                    <div
-                        class="relative w-full h-full rounded-2xl bg-[var(--surface-color)] border border-red-500/30 flex items-center justify-center text-red-500 shadow-xl">
-                        <i class="ri-forbid-2-line text-5xl"></i>
-                    </div>
-                </div>
-
-                <h2 class="text-3xl font-bold mb-3 tracking-tight">Access Denied</h2>
-                <p class="text-[var(--text-sec)] max-w-sm mx-auto mb-8 leading-relaxed">
-                    This link has **Expired** or is invalid. <br>
-                    Please request a new link from the bot.
-                </p>
-
-                <a href="https://t.me/STREAM_DROP_BOT"
-                    class="btn-hover bg-[var(--surface-color)] border border-[var(--border-color)] px-8 py-3 rounded-xl font-bold text-[var(--text-main)] hover:border-[var(--primary-color)] hover:text-[var(--primary-color)] transition-all shadow-lg inline-flex items-center gap-2">
-                    <i class="ri-telegram-fill text-xl"></i> Open Telegram Bot
-                </a>
-            </div>
-
-            <!-- Content State -->
-            <div id="success-state" class="hidden">
-
-                <!-- Player Wrapper -->
-                <div id="player-container"
-                    class="relative group w-full bg-black rounded-2xl overflow-hidden shadow-2xl mb-8 aspect-video hidden">
-                    <!-- Overlay Loader for Buffer -->
-                    <div id="media-loader"
-                        class="absolute inset-0 z-20 flex items-center justify-center bg-black/60 pointer-events-none opacity-0 transition-opacity duration-300">
-                        <div class="loader-dots"><span></span><span></span><span></span></div>
-                    </div>
-                </div>
-
-                <!-- PDF/Image Viewer Area -->
-                <div id="viewer-container"
-                    class="hidden w-full bg-[var(--surface-color)] rounded-2xl border border-[var(--border-color)] p-4 h-[600px] mb-8 overflow-hidden relative">
-                    <iframe id="pdf-frame" class="w-full h-full rounded-lg hidden"></iframe>
-                    <img id="image-view" class="w-full h-full object-contain rounded-lg hidden" />
-                </div>
-
-                <!-- Info Header -->
-                <div class="flex flex-col md:flex-row md:items-start justify-between gap-6 mb-8">
-                    <div class="flex-1">
-                        <h2 id="fname-text" class="text-2xl md:text-3xl font-bold leading-tight mb-3 break-all"></h2>
-                        <div class="flex flex-wrap gap-2">
-                            <span id="type-badge"
-                                class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-[var(--surface-color)] border border-[var(--border-color)]">UNKNOWN</span>
-                            <span
-                                class="px-3 py-1 rounded-lg text-xs font-bold uppercase bg-green-500/10 text-green-500 border border-green-500/20">READY</span>
+                    {/* File Info Row */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20 }}>
+                        <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <i className={`${fileIcon} text-2xl`} style={{ color: 'var(--red)' }}></i>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ fontWeight: 700, fontSize: 15, lineHeight: 1.35, wordBreak: 'break-all', marginBottom: 6 }}>{data.file_name}</p>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                <span className="badge-tag">{fileType}</span>
+                                <span className="badge-tag" style={{ color: '#60d394', borderColor: 'rgba(96,211,148,0.2)' }}>{data.file_size}</span>
+                                <span className="badge-tag" style={{ color: '#34d399', borderColor: 'rgba(52,211,153,0.2)' }}>READY</span>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Quick Actions -->
-                    <div class="flex gap-2">
-                        <button onclick="copyLink()"
-                            class="btn-hover w-10 h-10 rounded-xl bg-[var(--surface-color)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-sec)] hover:text-[var(--text-main)] hover:border-[var(--primary-color)] relative group">
-                            <i class="ri-file-copy-line text-lg"></i>
-                            <span
-                                class="absolute -top-10 bg-black text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap">Copy
-                                Link</span>
-                        </button>
-                        <button onclick="shareLink()"
-                            class="btn-hover w-10 h-10 rounded-xl bg-[var(--surface-color)] border border-[var(--border-color)] flex items-center justify-center text-[var(--text-sec)] hover:text-[var(--text-main)] hover:border-[var(--primary-color)]">
-                            <i class="ri-share-forward-line text-lg"></i>
-                        </button>
+                    {/* Action Buttons */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <a href={data.direct_dl_link} download className="btn btn-primary" style={{ width: '100%' }}>
+                            <i className="ri-download-cloud-2-fill text-xl"></i>
+                            Download {fileType === 'AUDIO' ? 'Audio' : fileType === 'VIDEO' ? 'Video' : fileType === 'PDF' ? 'PDF' : fileType === 'IMAGE' ? 'Image' : 'File'}
+                        </a>
+
+                        {isVideo && <StreamButtons data={data} isMobile={isMobile} />}
                     </div>
+
+                    {/* Admin Embed */}
+                    {IS_ADMIN && data.embed_link && <EmbedSection embedLink={data.embed_link} />}
                 </div>
-
-                <!-- Primary Action Buttons -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="action-buttons">
-                    <!-- Injected by JS -->
-                </div>
-
-            </div>
-
-        </div>
-
-        <!-- Footer -->
-        <div class="bg-[var(--surface-color)] p-4 text-center border-t border-[var(--border-color)]">
-            <p class="text-xs font-semibold text-[var(--text-sec)] tracking-wider">
-                POWERED BY <span class="text-[var(--primary-color)]">UNIVORA</span> &bull; DEV <span
-                    class="text-[var(--text-main)]">ROLEX SIR</span>
-            </p>
-        </div>
-
-    </div>
-
-    <!-- Scripts -->
-    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
-    <script>
-        const BASE_URL = window.location.origin;
-        const FILE_ID = window.location.pathname.split("/").pop();
-
-        // Theme Logic
-        function toggleTheme() {
-            const body = document.body;
-            const btn = document.querySelector('button[onclick="toggleTheme()"]');
-
-            if (body.getAttribute('data-theme') === 'day') {
-                body.removeAttribute('data-theme');
-                btn.classList.remove('day');
-                localStorage.setItem('theme', 'night');
-            } else {
-                body.setAttribute('data-theme', 'day');
-                btn.classList.add('day');
-                localStorage.setItem('theme', 'day');
-            }
+            );
         }
 
-        // Init Theme
-        if (localStorage.getItem('theme') === 'day') {
-            document.body.setAttribute('data-theme', 'day');
-            document.querySelector('button[onclick="toggleTheme()"]').classList.add('day');
-        }
+        /* ─── App ─────────────────────────────────────────────── */
+        function App() {
+            const [status, setStatus] = useState('loading'); // loading | error | success
+            const [data, setData] = useState(null);
+            const [theme, setTheme] = useState(() => localStorage.getItem('univora_theme') || 'dark');
+            const [copied, setCopied] = useState(false);
 
-        // Animation Init
-        window.onload = () => {
-            requestAnimationFrame(() => {
-                document.getElementById('main-content').classList.remove('opacity-0', 'translate-y-8');
-            });
-        };
+            useEffect(() => {
+                document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : '');
+                localStorage.setItem('univora_theme', theme);
+            }, [theme]);
 
-        // Clipboard
-        function copyLink() {
-            const url = window.location.href;
-            navigator.clipboard.writeText(url).then(() => {
-                const icon = document.querySelector('.ri-file-copy-line');
-                icon.className = 'ri-check-line text-green-500';
-                setTimeout(() => icon.className = 'ri-file-copy-line', 2000);
-            });
-        }
+            useEffect(() => {
+                fetch(`${BASE_URL}/api/file/${FILE_ID}`)
+                    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+                    .then(d => { setData(d); document.title = `${d.file_name} — StreamDrop`; setStatus('success'); })
+                    .catch(() => setStatus('error'));
+            }, []);
 
-        // Share
-        function shareLink() {
-            if (navigator.share) {
-                navigator.share({
-                    title: document.title,
-                    url: window.location.href
-                });
-            } else {
-                copyLink();
-            }
-        }
+            const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
 
-        async function init() {
-            try {
-                const res = await fetch(`${BASE_URL}/api/file/${FILE_ID}`);
-                if (!res.ok) throw new Error("API Error");
-                const data = await res.json();
+            const copyLink = useCallback(() => {
+                navigator.clipboard.writeText(window.location.href);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1800);
+            }, []);
 
-                // Populate Info
-                document.title = data.file_name;
-                document.getElementById('fname-text').innerText = data.file_name;
-                document.getElementById('size-text').innerText = data.file_size;
+            const shareLink = useCallback(() => {
+                if (navigator.share) navigator.share({ title: document.title, url: window.location.href });
+                else copyLink();
+            }, [copyLink]);
 
-                const typeBadge = document.getElementById('type-badge');
-                const playerContainer = document.getElementById('player-container');
-                const viewerContainer = document.getElementById('viewer-container');
-                const buttons = document.getElementById('action-buttons');
-                const mediaLoader = document.getElementById('media-loader');
+            return (
+                <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 16px', position: 'relative', zIndex: 1 }}>
+                    <div className="glass card-anim" style={{ width: '100%', maxWidth: 620, borderRadius: 24, overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.4)' }}>
 
-                // --- MEDIA TYPE LOGIC ---
-                let primaryBtnIcon = "ri-download-cloud-2-fill";
-                let primaryBtnText = "Download File";
-
-                // 1. Audio (Music Player)
-                if (data.is_media && data.file_name.match(/\.(mp3|aac|wav|flac|m4a|ogg)$/i)) {
-                    playerContainer.classList.remove('hidden');
-                    // Remove aspect-video for audio to avoid big black box
-                    playerContainer.classList.remove('aspect-video', 'bg-black');
-                    playerContainer.classList.add('bg-[var(--surface-color)]', 'p-6');
-
-                    typeBadge.innerText = "AUDIO TRACK";
-
-                    // Audio UI Structure
-                    playerContainer.innerHTML = `
-                         <div class="flex flex-col gap-6">
-                            <div class="flex items-center gap-4">
-                                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--primary-color)] to-purple-600 flex items-center justify-center shadow-lg shadow-[var(--primary-glow)]">
-                                    <i class="ri-music-2-fill text-3xl text-white"></i>
+                        {/* ─ Header ─ */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div style={{ width: 38, height: 38, borderRadius: 11, background: 'var(--red)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px var(--red-glow)', flexShrink: 0 }}>
+                                    <i className="ri-play-fill text-white text-xl"></i>
                                 </div>
-                                <div class="flex-1 min-w-0">
-                                    <h3 class="text-lg font-bold truncate">${data.file_name}</h3>
-                                    <p class="text-xs text-[var(--text-sec)]">High Quality Audio</p>
+                                <div>
+                                    <p style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.02em' }}>StreamDrop</p>
+                                    <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Secure Streaming</p>
                                 </div>
                             </div>
-                            <audio id="audio-player" class="w-full" controls crossorigin playsinline>
-                                <source src="${data.direct_dl_link}" type="audio/mp4"> 
-                            </audio>
-                         </div>
-                    `;
 
-                    const audioEl = document.getElementById('audio-player');
-
-                    // Initialize Plyr for Audio
-                    const player = new Plyr(audioEl, {
-                        controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings'],
-                        autoplay: true
-                    });
-
-                    primaryBtnText = "Download Music";
-
-                    // Buttons
-                    buttons.innerHTML += `
-                        <a href="${data.direct_dl_link}" download class="btn-hover bg-[var(--primary-color)] rounded-xl py-4 flex items-center justify-center gap-3 text-white font-bold shadow-lg shadow-[var(--primary-glow)] hover:brightness-110">
-                            <i class="${primaryBtnIcon} text-xl"></i> ${primaryBtnText}
-                        </a>
-                    `;
-                }
-
-                // 2. Video (Video Player)
-                else if (data.is_media) {
-                    playerContainer.classList.remove('hidden');
-                    // REMOVE aspect-video to let Plyr calculate exact height (Fixes Black Gap)
-                    playerContainer.classList.remove('aspect-video');
-                    playerContainer.classList.add('bg-black');
-
-                    typeBadge.innerText = "VIDEO STREAM";
-
-                    const videoEl = document.createElement('video');
-                    videoEl.src = data.direct_dl_link;
-                    videoEl.controls = true;
-                    videoEl.playsInline = true;
-                    videoEl.crossOrigin = "anonymous";
-                    videoEl.style.width = '100%';
-                    videoEl.style.height = '100%';
-
-                    // Re-add loader structure
-                    playerContainer.innerHTML = '';
-
-                    // Create Loader Element (Visible by default, Z-Index 50 to stay on top of Plyr)
-                    const loaderDiv = document.createElement('div');
-                    loaderDiv.id = 'media-loader';
-                    loaderDiv.className = 'absolute inset-0 z-50 flex items-center justify-center bg-black/90 transition-opacity duration-300 pointer-events-none';
-                    loaderDiv.innerHTML = `
-                        <div class="flex flex-col items-center gap-4">
-                            <div class="loader-dots scale-150"><span></span><span></span><span></span></div>
-                            <p class="text-xs font-semibold text-gray-400 tracking-widest uppercase animate-pulse">Loading Stream</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {IS_ADMIN && (
+                                    <a href={`${BASE_URL}/dashboard`} target="_blank" rel="noreferrer"
+                                        className="btn-icon" title="Admin Dashboard" style={{ color: 'var(--red)', borderColor: 'rgba(229,37,42,0.3)' }}>
+                                        <i className="ri-dashboard-2-line text-base"></i>
+                                    </a>
+                                )}
+                                <button className="btn-icon" title="Copy Link" onClick={copyLink}
+                                    style={copied ? { borderColor: '#10b981', color: '#10b981' } : {}}>
+                                    <i className={`${copied ? 'ri-check-line' : 'ri-links-line'} text-base`}></i>
+                                </button>
+                                <button className="btn-icon" title="Share" onClick={shareLink}>
+                                    <i className="ri-share-forward-line text-base"></i>
+                                </button>
+                                <button className="btn-icon" title="Toggle Theme" onClick={toggleTheme}>
+                                    <i className={`${theme === 'dark' ? 'ri-moon-line' : 'ri-sun-line'} text-base`}></i>
+                                </button>
+                            </div>
                         </div>
-                    `;
 
-                    playerContainer.appendChild(loaderDiv);
-                    playerContainer.appendChild(videoEl);
-
-                    // Initialize Plyr
-                    const player = new Plyr(videoEl, {
-                        controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
-                        autoplay: true,
-                        hideControls: false,
-                        keyboard: { focused: true, global: true },
-                        ratio: '16:9', // Default ratio to prevent CLS, will adapt
-                        resetOnEnd: true
-                    });
-
-                    // Smart Loader Logic
-                    // Force Loader Visible Initially
-                    loaderDiv.style.opacity = '1';
-
-                    function hideLoader() {
-                        loaderDiv.style.opacity = '0';
-                        // Delay hiding display to allow fade out
-                        setTimeout(() => loaderDiv.style.display = 'none', 500);
-                    }
-
-                    function showLoader() {
-                        loaderDiv.style.display = 'flex';
-                        void loaderDiv.offsetWidth; // Trigger reflow
-                        loaderDiv.style.opacity = '1';
-                    }
-
-                    // Events
-                    player.on('canplay', hideLoader);
-                    player.on('playing', hideLoader);
-                    player.on('seeking', showLoader);
-                    player.on('seeked', hideLoader);
-                    player.on('waiting', showLoader);
-
-                    // Fallback to hide loader if it plays anyway
-                    videoEl.addEventListener('playing', hideLoader);
-
-                    primaryBtnText = "Download Video";
-
-                    // Device detection for player routing
-                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                    let vlcLink = isMobile ? data.vlc_player_link_mobile : data.vlc_player_link_pc;
-                    let mxLink = data.mx_player_link;
-                    let playitLink = data.playit_link;
-
-                    // Download Button (Full Width)
-                    buttons.innerHTML += `
-                        <a href="${data.direct_dl_link}" download class="col-span-1 md:col-span-2 btn-hover bg-[var(--primary-color)] rounded-xl py-4 flex items-center justify-center gap-3 text-white font-bold shadow-lg shadow-[var(--primary-glow)] hover:brightness-110">
-                            <i class="${primaryBtnIcon} text-xl"></i> ${primaryBtnText}
-                        </a>
-                    `;
-
-                    // App-specific Buttons Box
-                    // Wrap in a div that spans full width but displays grid
-                    const appsGrid = document.createElement("div");
-                    appsGrid.className = "col-span-1 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3 mt-2";
-
-                    // 1. VLC Button
-                    if (isMobile) {
-                        appsGrid.innerHTML += `
-                            <a href="${vlcLink}" class="btn-hover bg-[var(--surface-color)] border border-orange-500/30 rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-orange-500 hover:bg-orange-500 hover:text-white transition-colors shadow-sm">
-                                <i class="ri-play-circle-fill text-xl"></i> Open in VLC
-                            </a>
-                        `;
-                    } else {
-                        appsGrid.innerHTML += `
-                            <button onclick="copyVlcUrl('${data.direct_dl_link}')" class="btn-hover bg-[var(--surface-color)] border border-orange-500/30 rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-orange-500 hover:bg-orange-500 hover:text-white transition-colors shadow-sm">
-                                <i class="ri-play-circle-fill text-xl"></i> Stream in VLC
-                            </button>
-                        `;
-                    }
-
-                    // 2. PlayIt & MX Player (Device Specific)
-                    if (isMobile) {
-                        appsGrid.innerHTML += `
-                            <a href="${mxLink}" class="btn-hover bg-[var(--surface-color)] border border-blue-500/30 rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-blue-500 hover:bg-blue-500 hover:text-white transition-colors shadow-sm">
-                                <i class="ri-play-circle-fill text-xl"></i> MX Player
-                            </a>
-                            <a href="${playitLink}" class="btn-hover bg-[var(--surface-color)] border border-green-500/30 rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-green-500 hover:bg-green-500 hover:text-white transition-colors shadow-sm">
-                                <i class="ri-play-circle-fill text-xl"></i> PlayIt
-                            </a>
-                        `;
-                    } else {
-                        // Laptop PC users see disabled buttons with alert
-                        appsGrid.innerHTML += `
-                            <button onclick="alert('⚠️ MX Player is an Android/iOS App.\\n\\nFor laptops, please use VLC Player or watch in the browser directly.')" class="btn-hover bg-[var(--surface-color)] border border-[var(--border-color)] rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-[var(--text-sec)] opacity-60 hover:opacity-100 transition-colors">
-                                <i class="ri-information-line text-xl"></i> MX Player
-                            </button>
-                            <button onclick="alert('⚠️ PlayIt is an Android/iOS App.\\n\\nFor laptops, please use VLC Player or watch in the browser directly.')" class="btn-hover bg-[var(--surface-color)] border border-[var(--border-color)] rounded-xl py-3 flex items-center justify-center gap-2 font-bold text-[var(--text-sec)] opacity-60 hover:opacity-100 transition-colors">
-                                <i class="ri-information-line text-xl"></i> PlayIt
-                            </button>
-                        `;
-                    }
-
-                    buttons.appendChild(appsGrid);
-
-                }
-                // 3. PDF
-                else if (data.file_name.match(/\.pdf$/i)) {
-                    // ... (rest of PDF logic same as before)
-                    viewerContainer.classList.remove('hidden');
-                    const iframe = document.getElementById('pdf-frame');
-                    iframe.src = data.direct_dl_link;
-                    iframe.classList.remove('hidden');
-                    typeBadge.innerText = "PDF DOCUMENT";
-
-                    buttons.innerHTML = `
-                         <a href="${data.direct_dl_link}" download class="col-span-1 md:col-span-2 btn-hover bg-[var(--primary-color)] rounded-xl py-4 flex items-center justify-center gap-3 text-white font-bold shadow-lg shadow-[var(--primary-glow)] hover:brightness-110">
-                            <i class="ri-book-open-line text-xl"></i> Download PDF
-                        </a>
-                    `;
-                }
-                // 4. Image
-                else if (data.file_name.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-                    // ... (rest of Image logic same as before)
-                    viewerContainer.classList.remove('hidden');
-                    viewerContainer.style.height = 'auto'; // Auto height for images
-                    const img = document.getElementById('image-view');
-                    img.src = data.direct_dl_link;
-                    img.classList.remove('hidden');
-                    typeBadge.innerText = "IMAGE";
-
-                    buttons.innerHTML = `
-                         <a href="${data.direct_dl_link}" download class="col-span-1 md:col-span-2 btn-hover bg-[var(--primary-color)] rounded-xl py-4 flex items-center justify-center gap-3 text-white font-bold shadow-lg shadow-[var(--primary-glow)] hover:brightness-110">
-                            <i class="ri-image-line text-xl"></i> Download Image
-                        </a>
-                    `;
-                }
-                // 5. Other
-                else {
-                    typeBadge.innerText = "FILE";
-                    buttons.innerHTML = `
-                         <a href="${data.direct_dl_link}" download class="col-span-1 md:col-span-2 btn-hover bg-[var(--primary-color)] rounded-xl py-4 flex items-center justify-center gap-3 text-white font-bold shadow-lg shadow-[var(--primary-glow)] hover:brightness-110">
-                            <i class="ri-download-2-line text-xl"></i> Fast Download
-                        </a>
-                    `;
-                }
-
-                // Show Content
-                document.getElementById('loader-state').classList.add('hidden');
-                document.getElementById('success-state').classList.remove('hidden');
-
-                // Admin Embed Section
-                const urlParams = new URLSearchParams(window.location.search);
-                if (urlParams.get('admin') === 'true' && data.embed_link) {
-                    const embedContainer = document.createElement("div");
-                    embedContainer.className = "mt-8 p-4 rounded-xl bg-[var(--surface-color)] border border-red-500/30";
-                    embedContainer.innerHTML = `
-                        <h3 class="text-xs font-bold text-red-500 uppercase tracking-widest mb-3"><i class="ri-code-s-slash-line text-lg align-middle mr-1"></i> Developer Embed Code</h3>
-                        <div class="relative group">
-                            <textarea readonly class="w-full h-20 bg-black border border-[var(--border-color)] rounded-lg p-3 text-xs text-white font-mono resize-none focus:outline-none focus:border-red-500 transition-colors">&lt;iframe src="${data.embed_link}" width="100%" height="100%" frameborder="0" allowfullscreen&gt;&lt;/iframe&gt;</textarea>
-                            <button onclick="navigator.clipboard.writeText('<iframe src=\\'${data.embed_link}\\' width=\\'100%\\' height=\\'100%\\' frameborder=\\'0\\' allowfullscreen></iframe>'); this.innerHTML = '<i class=\\'ri-check-line\\'></i> Copied!';" class="absolute top-2 right-2 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-md opacity-0 group-hover:opacity-100 transition-all shadow-lg">
-                                <i class="ri-clipboard-line"></i> Copy
-                            </button>
+                        {/* ─ Body ─ */}
+                        <div style={{ padding: '24px 20px' }}>
+                            {status === 'loading' && <Loader />}
+                            {status === 'error' && <ErrorState />}
+                            {status === 'success' && data && <SuccessContent data={data} />}
                         </div>
-                    `;
-                    document.getElementById('success-state').appendChild(embedContainer);
-                }
 
-            } catch (e) {
-                console.error(e);
-                document.getElementById('loader-state').classList.add('hidden');
-                document.getElementById('error-state').classList.remove('hidden');
-            }
+                        {/* ─ Footer ─ */}
+                        <div style={{ borderTop: '1px solid var(--border)', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.15)' }}>
+                            <a href="https://univora.site" target="_blank" rel="noreferrer"
+                                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: 'var(--muted)', textDecoration: 'none', letterSpacing: '0.04em' }}>
+                                <i className="ri-global-line text-sm"></i>
+                                this platform by&nbsp;<span style={{ color: 'var(--red)', fontWeight: 700 }}>UNIVORA</span>
+                            </a>
+                        </div>
+
+                    </div>
+                </div>
+            );
         }
 
-        function copyVlcUrl(url) {
-            navigator.clipboard.writeText(url).then(() => {
-                alert("✅ Stream Link Copied!\n\nTo view in VLC on PC:\n1. Open VLC Media Player\n2. Go to Media > Open Network Stream (Ctrl+N)\n3. Paste the copied link and click Play!");
-            }).catch(() => {
-                alert("Failed to copy link. Please manually copy the URL from Download Video button.");
-            });
-        }
-
-        init();
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 

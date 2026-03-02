@@ -4,286 +4,529 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="StreamDrop Dashboard — Manage your uploaded media assets.">
     <title>StreamDrop | Dashboard</title>
+
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React + Babel -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Remix Icons -->
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
-
         :root {
-            --primary-color: #6366f1;
-            --primary-glow: rgba(99, 102, 241, 0.4);
-            --bg-color: #0f111a;
-            --surface-color: #1a1d2d;
-            --border-color: #2d324d;
-            --text-main: #ffffff;
-            --text-sec: #94a3b8;
+            --bg: #050505;
+            --surface: #0d0d0d;
+            --surface-2: #161616;
+            --border: #1f1f1f;
+            --border-hover: #2e2e2e;
+            --red: #e5252a;
+            --red-glow: rgba(229, 37, 42, 0.3);
+            --red-dim: rgba(229, 37, 42, 0.08);
+            --text: #f0f0f0;
+            --muted: #666666;
+            --muted-2: #3a3a3a;
         }
 
-        /* Light Mode Variables */
         [data-theme="light"] {
-            --primary-color: #4f46e5;
-            --primary-glow: rgba(79, 70, 229, 0.2);
-            --bg-color: #f3f4f6;
-            --surface-color: #ffffff;
-            --border-color: #e5e7eb;
-            --text-main: #111827;
-            --text-sec: #6b7280;
+            --bg: #fafafa;
+            --surface: #ffffff;
+            --surface-2: #f4f4f5;
+            --border: #e4e4e7;
+            --border-hover: #d1d1d6;
+            --red: #dc1f24;
+            --red-glow: rgba(220, 31, 36, 0.18);
+            --red-dim: rgba(220, 31, 36, 0.06);
+            --text: #111111;
+            --muted: #888888;
+            --muted-2: #d4d4d8;
         }
 
-        body {
-            font-family: 'Outfit', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            transition: all 0.3s ease;
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
-        .gradient-text {
-            background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+        html,
+        body,
+        #root {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            transition: background 0.4s, color 0.4s;
+            -webkit-font-smoothing: antialiased;
         }
 
-        .btn-hover {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
         }
 
-        .btn-hover:active {
-            transform: scale(0.95);
+        ::-webkit-scrollbar-track {
+            background: transparent;
         }
 
-        /* Search Input */
-        .search-input {
-            background: var(--surface-color);
-            border: 1px solid var(--border-color);
-            color: var(--text-main);
-            transition: all 0.3s ease;
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 999px;
         }
 
-        .search-input:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 4px var(--primary-glow);
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+        }
+
+        [data-theme="light"] .glass {
+            background: rgba(255, 255, 255, 0.85);
+        }
+
+        /* Ambient glow */
+        .ambient {
+            position: fixed;
+            top: -35vh;
+            left: 15%;
+            width: 70vw;
+            height: 70vh;
+            background: radial-gradient(ellipse at center, var(--red-glow) 0%, transparent 65%);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.35;
+            filter: blur(60px);
+        }
+
+        /* Row hover */
+        .asset-row {
+            border: 1px solid var(--border);
+            background: var(--surface);
+            transition: border-color 0.2s, background 0.2s, transform 0.2s, box-shadow 0.2s;
+            will-change: transform;
+        }
+
+        .asset-row:hover {
+            border-color: var(--red);
+            background: var(--surface-2);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--red-glow);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: var(--red);
+            color: #fff;
+            border: none;
+            box-shadow: 0 4px 16px var(--red-glow);
+            transition: filter 0.2s, transform 0.15s, box-shadow 0.2s;
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.12);
+            box-shadow: 0 6px 24px var(--red-glow);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.93);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--muted);
+            border: 1px solid var(--border);
+            transition: border-color 0.2s, color 0.2s, transform 0.15s;
+        }
+
+        .btn-ghost:hover {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .btn-ghost:active {
+            transform: scale(0.91);
+        }
+
+        /* Search */
+        .search-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            transition: border-color 0.25s, box-shadow 0.25s;
+        }
+
+        .search-box:focus {
             outline: none;
+            border-color: var(--red);
+            box-shadow: 0 0 0 3px var(--red-glow);
         }
 
-        /* Card Hover */
-        .file-card {
-            background: var(--surface-color);
-            border: 1px solid var(--border-color);
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        .search-box::placeholder {
+            color: var(--muted);
         }
 
-        .file-card:hover {
-            transform: translateY(-2px);
-            border-color: var(--primary-color);
-            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.2);
+        /* Select */
+        .select-box {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text);
+            appearance: none;
         }
 
-        /* Loading */
-        .shimmer {
-            background: linear-gradient(90deg, var(--surface-color) 0%, var(--border-color) 50%, var(--surface-color) 100%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
+        .select-box:focus {
+            outline: none;
+            border-color: var(--red);
         }
 
-        @keyframes shimmer {
-            0% {
-                background-position: -200% 0;
+        /* Badge */
+        .badge {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.07em;
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            color: var(--muted);
+            background: var(--surface-2);
+        }
+
+        /* Entry animation */
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(14px);
             }
 
-            100% {
-                background-position: 200% 0;
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .anim-fadeup {
+            animation: fadeUp 0.5s ease forwards;
+        }
+
+        /* Table rows stagger */
+        .row-0 {
+            animation-delay: 0ms;
+        }
+
+        .row-1 {
+            animation-delay: 40ms;
+        }
+
+        .row-2 {
+            animation-delay: 80ms;
+        }
+
+        .row-3 {
+            animation-delay: 120ms;
+        }
+
+        .row-4 {
+            animation-delay: 160ms;
+        }
+
+        .row-5 {
+            animation-delay: 200ms;
+        }
+
+        .row-6 {
+            animation-delay: 240ms;
+        }
+
+        .row-7 {
+            animation-delay: 280ms;
+        }
+
+        .row-8 {
+            animation-delay: 320ms;
+        }
+
+        .row-9 {
+            animation-delay: 360ms;
+        }
+
+        /* Copied state */
+        .copied-anim {
+            color: #10b981 !important;
+            border-color: #10b981 !important;
+        }
+
+        /* Mobile card */
+        @media (max-width: 767px) {
+            .hide-mobile {
+                display: none !important;
             }
         }
     </style>
 </head>
 
-<body class="min-h-screen flex flex-col">
+<body>
+    <!-- Seed Jinja data -->
+    <script id="linksData" type="application/json">{{ links | tojson }}</script>
+    <script type="text/javascript">
+        window.__TOTAL__ = {{ total_count }};
+    </script>
 
-    <!-- Navbar -->
-    <nav class="border-b border-[var(--border-color)] bg-[var(--surface-color)]/80 backdrop-blur-xl sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-12 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div
-                    class="w-10 h-10 rounded-xl bg-[var(--primary-color)] flex items-center justify-center text-white shadow-lg shadow-[var(--primary-glow)]">
-                    <i class="ri-folder-shield-2-fill text-xl"></i>
-                </div>
-                <span class="text-xl font-bold tracking-tight">My Files</span>
-            </div>
+    <div class="ambient"></div>
+    <div id="root"></div>
 
-            <div class="flex items-center gap-4">
-                <p class="hidden md:block text-sm font-medium text-[var(--text-sec)]">Total: <span id="total-count"
-                        class="text-[var(--text-main)]">{{ total_count }}</span></p>
-                <button onclick="toggleTheme()"
-                    class="w-10 h-10 rounded-full border border-[var(--border-color)] flex items-center justify-center hover:bg-[var(--border-color)] btn-hover">
-                    <i id="theme-icon" class="ri-moon-line text-lg"></i>
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useCallback, useRef } = React;
+
+        /* ─── Helpers ─────────────────────────────────────────── */
+        function getFileIcon(name) {
+            if (!name) return 'ri-file-3-line';
+            const ext = name.split('.').pop().toLowerCase();
+            if (['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(ext)) return 'ri-film-line';
+            if (['mp3', 'aac', 'wav', 'flac', 'm4a'].includes(ext)) return 'ri-music-2-line';
+            if (ext === 'pdf') return 'ri-file-pdf-2-line';
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return 'ri-image-2-line';
+            return 'ri-file-3-line';
+        }
+
+        function getFileColor(name) {
+            if (!name) return 'var(--muted)';
+            const ext = name.split('.').pop().toLowerCase();
+            if (['mp4', 'mkv', 'avi', 'mov', 'webm'].includes(ext)) return '#818cf8'; // indigo
+            if (['mp3', 'aac', 'wav', 'flac', 'm4a'].includes(ext)) return '#34d399'; // emerald
+            if (ext === 'pdf') return 'var(--red)';
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return '#60a5fa'; // blue
+            return 'var(--muted)';
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '—';
+            return dateStr.split(' ')[0];
+        }
+
+        /* ─── CopyButton ─────────────────────────────────────── */
+        function CopyButton({ text }) {
+            const [copied, setCopied] = useState(false);
+            const handleCopy = useCallback((e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(text);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+            }, [text]);
+
+            return (
+                <button onClick={handleCopy}
+                    className={`btn-ghost h-9 w-9 flex items-center justify-center rounded-xl flex-shrink-0 ${copied ? 'copied-anim' : ''}`}
+                    style={{ borderRadius: '10px' }}>
+                    <i className={copied ? 'ri-check-line text-base' : 'ri-links-line text-base'}></i>
                 </button>
-            </div>
-        </div>
-    </nav>
+            );
+        }
 
-    <!-- Main Content -->
-    <main class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        /* ─── AssetRow ───────────────────────────────────────── */
+        function AssetRow({ link, idx }) {
+            const icon = getFileIcon(link.name);
+            const color = getFileColor(link.name);
+            const delay = Math.min(idx, 9);
 
-        <!-- Controls Area -->
-        <div class="flex flex-col md:flex-row gap-4 mb-8 sticky top-20 z-40 py-2">
-            <!-- Search -->
-            <div class="relative flex-1">
-                <i class="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-sec)]"></i>
-                <input type="text" id="search-bar" placeholder="Search files by name..."
-                    class="search-input w-full h-12 rounded-xl pl-12 pr-4 text-sm font-medium">
-            </div>
+            return (
+                <div className={`asset-row rounded-2xl px-4 py-3 md:px-6 md:py-4 anim-fadeup row-${delay}`}
+                    style={{ opacity: 0 }}>
+                    <div className="flex items-center gap-3 md:gap-5">
+                        {/* Icon */}
+                        <div className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center"
+                            style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                            <i className={`${icon} text-2xl`} style={{ color }}></i>
+                        </div>
 
-            <!-- Filters -->
-            <div class="flex gap-2 overflow-x-auto pb-2 md:pb-0 no-scrollbar">
-                <select id="sort-filter" onchange="runFilters()"
-                    class="search-input h-12 rounded-xl px-4 text-sm font-medium cursor-pointer min-w-[140px]">
-                    <option value="newest">📅 Newest First</option>
-                    <option value="oldest">🕒 Oldest First</option>
-                    <option value="name_asc">🔤 Name (A-Z)</option>
-                    <option value="name_desc">🔤 Name (Z-A)</option>
-                </select>
-            </div>
-        </div>
+                        {/* Name + Meta */}
+                        <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm md:text-[15px] truncate leading-snug"
+                                style={{ color: 'var(--text)' }} title={link.name}>
+                                {link.name}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                <span className="badge">{link.size}</span>
+                                <span className="badge hide-mobile">{formatDate(link.date)}</span>
+                                <span className="badge" style={{ color: '#f87171', borderColor: 'rgba(248,113,113,0.2)' }}>
+                                    Exp {link.expiry}
+                                </span>
+                            </div>
+                        </div>
 
-        <!-- File List Grid -->
-        <div id="file-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <!-- Items injected by JS -->
-            {% for link in links %}
-            <div class="file-card rounded-2xl p-5 relative group" data-name="{{ link.name | lower }}"
-                data-date="{{ link.timestamp }}">
-
-                <!-- Top Row -->
-                <div class="flex items-start justify-between mb-4">
-                    <div
-                        class="w-10 h-10 rounded-lg bg-[var(--bg-color)] flex items-center justify-center text-[var(--primary-color)]">
-                        <i class="ri-file-text-line text-xl"></i>
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            <CopyButton text={link.stream_link} />
+                            <a href={link.stream_link} target="_blank" rel="noreferrer"
+                                className="btn-primary h-9 px-4 rounded-xl flex items-center gap-1.5 text-sm font-semibold"
+                                style={{ borderRadius: '10px' }}>
+                                <i className="ri-eye-line text-base"></i>
+                                <span className="hide-mobile">View</span>
+                            </a>
+                        </div>
                     </div>
-                    <span
-                        class="text-xs font-semibold px-2 py-1 rounded bg-[var(--bg-color)] text-[var(--text-sec)] border border-[var(--border-color)]">
-                        {{ link.size }}
-                    </span>
                 </div>
-
-                <!-- Filename -->
-                <h3 class="font-semibold text-lg leading-tight mb-2 line-clamp-2 min-h-[44px]" title="{{ link.name }}">
-                    {{ link.name }}</h3>
-
-                <!-- Meta -->
-                <div class="flex items-center gap-3 text-xs text-[var(--text-sec)] mb-4">
-                    <span class="flex items-center gap-1"><i class="ri-calendar-line"></i> {{ link.date }}</span>
-                    <span class="flex items-center gap-1"><i class="ri-timer-flash-line"></i> Exp: {{ link.expiry
-                        }}</span>
-                </div>
-
-                <!-- Actions -->
-                <div class="grid grid-cols-2 gap-2">
-                    <a href="{{ link.stream_link }}" target="_blank"
-                        class="btn-hover h-10 rounded-lg bg-[var(--primary-color)] text-white font-medium text-sm flex items-center justify-center gap-2 shadow-lg shadow-[var(--primary-glow)]">
-                        <i class="ri-play-circle-fill"></i> Stream
-                    </a>
-                    <button onclick="copyToClipboard('{{ link.stream_link }}', this)"
-                        class="btn-hover h-10 rounded-lg border border-[var(--border-color)] hover:bg-[var(--bg-color)] font-medium text-sm flex items-center justify-center gap-2 active:bg-green-500/10 active:text-green-500 active:border-green-500">
-                        <i class="ri-file-copy-line"></i> Copy
-                    </button>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-
-        <!-- Empty State -->
-        <div id="empty-state" class="hidden flex-col items-center justify-center py-20 text-center">
-            <div
-                class="w-16 h-16 rounded-full bg-[var(--surface-color)] flex items-center justify-center text-[var(--text-sec)] mb-4">
-                <i class="ri-search-2-line text-2xl"></i>
-            </div>
-            <p class="text-[var(--text-sec)]">No matching files found.</p>
-        </div>
-
-    </main>
-
-    <script>
-        // Init Data
-        let files = Array.from(document.querySelectorAll('.file-card'));
-        const grid = document.getElementById('file-grid');
-        const emptyState = document.getElementById('empty-state');
-        const countLabel = document.getElementById('total-count');
-
-        // Search Logic
-        document.getElementById('search-bar').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            let visibleCount = 0;
-
-            files.forEach(card => {
-                const name = card.dataset.name;
-                if (name.includes(term)) {
-                    card.classList.remove('hidden');
-                    visibleCount++;
-                } else {
-                    card.classList.add('hidden');
-                }
-            });
-
-            // Show empty state if needed
-            if (visibleCount === 0) {
-                grid.classList.add('hidden');
-                emptyState.classList.remove('hidden');
-                emptyState.classList.add('flex');
-            } else {
-                grid.classList.remove('hidden');
-                emptyState.classList.add('hidden');
-                emptyState.classList.remove('flex');
-            }
-            countLabel.innerText = visibleCount;
-        });
-
-        // Copy Logic
-        function copyToClipboard(text, btn) {
-            navigator.clipboard.writeText(text);
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = `<i class="ri-check-line"></i> Copied`;
-            btn.classList.add('text-green-500', 'border-green-500');
-
-            setTimeout(() => {
-                btn.innerHTML = originalHTML;
-                btn.classList.remove('text-green-500', 'border-green-500');
-            }, 2000);
+            );
         }
 
-        // Sorting Logic
-        function runFilters() {
-            const sortType = document.getElementById('sort-filter').value;
-
-            const sortedFiles = files.sort((a, b) => {
-                const dateA = parseInt(a.dataset.date);
-                const dateB = parseInt(b.dataset.date);
-                const nameA = a.dataset.name;
-                const nameB = b.dataset.name;
-
-                if (sortType === 'newest') return dateB - dateA;
-                if (sortType === 'oldest') return dateA - dateB;
-                if (sortType === 'name_asc') return nameA.localeCompare(nameB);
-                if (sortType === 'name_desc') return nameB.localeCompare(nameA);
-            });
-
-            // Re-append to grid
-            sortedFiles.forEach(file => grid.appendChild(file));
+        /* ─── EmptyState ─────────────────────────────────────── */
+        function EmptyState({ query }) {
+            return (
+                <div className="flex flex-col items-center justify-center py-32 text-center anim-fadeup" style={{ opacity: 0 }}>
+                    <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
+                        style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                        <i className="ri-search-eye-line text-3xl" style={{ color: 'var(--muted)' }}></i>
+                    </div>
+                    <p className="font-semibold text-base mb-1" style={{ color: 'var(--text)' }}>No results</p>
+                    <p className="text-sm" style={{ color: 'var(--muted)' }}>
+                        {query ? `No assets match "${query}"` : 'Upload files via the Telegram bot to get started.'}
+                    </p>
+                </div>
+            );
         }
 
-        // Theme Toggle
-        function toggleTheme() {
-            const body = document.body;
-            const icon = document.getElementById('theme-icon');
+        /* ─── Main App ───────────────────────────────────────── */
+        function App() {
+            // Parse seed data from Jinja
+            const raw = useMemo(() => {
+                try { return JSON.parse(document.getElementById('linksData').textContent || '[]'); }
+                catch { return []; }
+            }, []);
 
-            if (body.getAttribute('data-theme') === 'light') {
-                body.setAttribute('data-theme', 'dark');
-                icon.className = 'ri-moon-line text-lg';
-            } else {
-                body.setAttribute('data-theme', 'light');
-                icon.className = 'ri-sun-line text-lg';
-            }
+            const [query, setQuery] = useState('');
+            const [sort, setSort] = useState('newest');
+            const [theme, setTheme] = useState(() => localStorage.getItem('univora_theme') || 'dark');
+
+            useEffect(() => {
+                document.body.parentElement.setAttribute('data-theme', theme === 'light' ? 'light' : '');
+                localStorage.setItem('univora_theme', theme);
+            }, [theme]);
+
+            const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
+
+            const filtered = useMemo(() => {
+                let arr = [...raw];
+                if (query) arr = arr.filter(f => (f.name || '').toLowerCase().includes(query.toLowerCase()));
+                if (sort === 'newest') arr.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                else if (sort === 'oldest') arr.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+                else if (sort === 'name_asc') arr.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                else if (sort === 'name_desc') arr.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+                return arr;
+            }, [raw, query, sort]);
+
+            const inputRef = useRef(null);
+
+            return (
+                <div className="flex flex-col min-h-screen relative z-10">
+
+                    {/* ── Header ── */}
+                    <header className="glass sticky top-0 z-50"
+                        style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none' }}>
+                        <div className="max-w-5xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                                    style={{ background: 'var(--red)', boxShadow: '0 4px 16px var(--red-glow)' }}>
+                                    <i className="ri-stack-line text-white text-lg"></i>
+                                </div>
+                                <div>
+                                    <h1 className="font-bold text-base leading-tight" style={{ letterSpacing: '-0.02em' }}>StreamDrop</h1>
+                                    <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Dashboard</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                <p className="text-sm hidden md:block" style={{ color: 'var(--muted)' }}>
+                                    <span className="font-bold" style={{ color: 'var(--text)' }}>{filtered.length}</span>
+                                    &nbsp;/ {window.__TOTAL__} assets
+                                </p>
+                                <button onClick={toggleTheme}
+                                    className="btn-ghost w-9 h-9 rounded-xl flex items-center justify-center"
+                                    style={{ borderRadius: '10px' }}>
+                                    <i className={theme === 'dark' ? 'ri-moon-line text-base' : 'ri-sun-line text-base'}></i>
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* ── Content ── */}
+                    <main className="flex-1 max-w-5xl w-full mx-auto px-4 md:px-8 py-8">
+
+                        {/* Toolbar */}
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6">
+                            <div className="relative flex-1">
+                                <i className="ri-search-2-line absolute left-4 top-1/2 -translate-y-1/2 text-lg"
+                                    style={{ color: 'var(--muted)', pointerEvents: 'none' }}></i>
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    className="search-box w-full h-11 rounded-xl pl-11 pr-4 text-sm font-medium"
+                                    style={{ borderRadius: '12px' }}
+                                    placeholder="Search assets by name..."
+                                    value={query}
+                                    onChange={e => setQuery(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="relative flex-shrink-0">
+                                <i className="ri-sort-desc absolute right-4 top-1/2 -translate-y-1/2 text-base pointer-events-none"
+                                    style={{ color: 'var(--muted)' }}></i>
+                                <select
+                                    value={sort}
+                                    onChange={e => setSort(e.target.value)}
+                                    className="select-box h-11 pl-4 pr-10 rounded-xl text-sm font-medium cursor-pointer w-full sm:w-auto"
+                                    style={{ borderRadius: '12px' }}>
+                                    <option value="newest">Latest First</option>
+                                    <option value="oldest">Oldest First</option>
+                                    <option value="name_asc">A — Z</option>
+                                    <option value="name_desc">Z — A</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Column headers (desktop) */}
+                        {filtered.length > 0 && (
+                            <div className="hidden md:flex items-center gap-5 px-6 mb-3">
+                                <div className="w-11 flex-shrink-0"></div>
+                                <p className="flex-1 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--muted)', letterSpacing: '0.08em' }}>Asset</p>
+                                <p className="text-xs font-semibold uppercase tracking-wider text-right" style={{ color: 'var(--muted)', letterSpacing: '0.08em', minWidth: '120px' }}>Actions</p>
+                            </div>
+                        )}
+
+                        {/* Asset List */}
+                        <div className="flex flex-col gap-2">
+                            {filtered.length > 0
+                                ? filtered.map((link, i) => <AssetRow key={link.stream_link || i} link={link} idx={i} />)
+                                : <EmptyState query={query} />
+                            }
+                        </div>
+                    </main>
+
+                    {/* ── Footer ── */}
+                    <footer className="mt-auto" style={{ borderTop: '1px solid var(--border)' }}>
+                        <div className="max-w-5xl mx-auto px-4 md:px-8 h-14 flex items-center justify-between">
+                            <p className="text-xs font-medium" style={{ color: 'var(--muted)' }}>
+                                Powered by&nbsp;
+                                <a href="https://univora.site" target="_blank" rel="noreferrer"
+                                    style={{ color: 'var(--red)', fontWeight: 700 }}>UNIVORA</a>
+                            </p>
+                            <a href="https://univora.site" target="_blank" rel="noreferrer"
+                                className="flex items-center gap-1.5 text-xs font-medium"
+                                style={{ color: 'var(--muted)' }}>
+                                <i className="ri-external-link-line text-sm"></i>
+                                univora.site
+                            </a>
+                        </div>
+                    </footer>
+                </div>
+            );
         }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 

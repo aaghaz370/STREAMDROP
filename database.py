@@ -166,4 +166,34 @@ class Database:
     async def is_banned(self, user_id):
         return await self.db.banned.find_one({"_id": user_id}) is not None
 
+    # --- SESSION PERSISTENCE ---
+    async def save_session_file(self, session_name: str, file_path: str):
+        try:
+            import os
+            if not os.path.exists(file_path):
+                return
+            with open(file_path, 'rb') as f:
+                data = f.read()
+            from bson.binary import Binary
+            await self.db.sessions.update_one(
+                {"_id": session_name}, 
+                {"$set": {"data": Binary(data)}}, 
+                upsert=True
+            )
+            print(f"✅ Session {session_name} backed up to MongoDB.")
+        except Exception as e:
+            print(f"Failed to backup session: {e}")
+
+    async def load_session_file(self, session_name: str, file_path: str):
+        try:
+            doc = await self.db.sessions.find_one({"_id": session_name})
+            if doc and "data" in doc:
+                with open(file_path, 'wb') as f:
+                    f.write(doc["data"])
+                print(f"✅ Session {session_name} restored from MongoDB.")
+                return True
+        except Exception as e:
+            print(f"Failed to restore session: {e}")
+        return False
+
 db = Database()

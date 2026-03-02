@@ -48,6 +48,9 @@ async def lifespan(app: FastAPI):
     
     await db.connect()
     
+    # Restoring Session across Render OOM reboots
+    await db.load_session_file("SimpleStreamBot", "SimpleStreamBot.session")
+    
     try:
         print("Starting main Pyrogram bot...")
         await bot.start()
@@ -102,6 +105,8 @@ async def lifespan(app: FastAPI):
         # Send restart notification to all users (non-blocking)
         asyncio.create_task(send_startup_broadcast())
 
+        await db.save_session_file("SimpleStreamBot", "SimpleStreamBot.session")
+
         print("--- Lifespan: Startup safaltapoorvak poora hua. ---")
     
     except Exception as e:
@@ -148,6 +153,8 @@ async def channel_warmup(client: Client, message: Message):
     # This handler helps the bot "see" the channel and cache its Access Hash
     # correcting the "Peer id invalid" error on fresh sessions.
     print(f"🔥 CHANNEL WARMUP: Detected message in {message.chat.title} ({message.chat.id}). Access Hash cached.")
+    # Safe session backup
+    await db.save_session_file("SimpleStreamBot", "SimpleStreamBot.session")
 
 # --- CHECK ACCESS HELPER (ForceSub + Ban) ---
 async def check_access(user_id: int):
