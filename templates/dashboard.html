@@ -271,11 +271,7 @@
 </head>
 
 <body>
-    <!-- Seed Jinja data -->
-    <script id="linksData" type="application/json">{{ links_json }}</script>
-    <script type="text/javascript">
-        window.__TOTAL__ = {{ total_count }};
-    </script>
+    <script id="appData" type="application/json">{{ app_data_json }}</script>
 
     <div class="ambient"></div>
     <div id="root"></div>
@@ -394,7 +390,11 @@
         function App() {
             // Parse seed data from Jinja
             const raw = useMemo(() => {
-                try { return JSON.parse(document.getElementById('linksData').textContent || '[]'); }
+                try {
+                    const d = JSON.parse(document.getElementById('appData').textContent || '{}');
+                    window.__TOTAL__ = d.total || 0;
+                    return d.links || [];
+                }
                 catch { return []; }
             }, []);
 

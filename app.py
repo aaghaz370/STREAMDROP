@@ -1041,13 +1041,14 @@ async def dashboard_page(request: Request, user_id: int, token: str):
              })
              
         import json
+        app_data = {"links": formatted_links, "total": len(formatted_links)}
         return templates.TemplateResponse(
             "dashboard.html",
             {
                 "request": request,
                 "user_id": user_id,
                 "links": formatted_links,
-                "links_json": json.dumps(formatted_links, default=str),
+                "app_data_json": json.dumps(app_data, default=str),
                 "total_count": len(formatted_links)
             }
         )
