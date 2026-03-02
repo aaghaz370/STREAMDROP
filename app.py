@@ -1040,12 +1040,14 @@ async def dashboard_page(request: Request, user_id: int, token: str):
                  "expiry": expiry.strftime('%Y-%m-%d') if expiry else "Never"
              })
              
+        import json
         return templates.TemplateResponse(
             "dashboard.html",
             {
                 "request": request,
                 "user_id": user_id,
                 "links": formatted_links,
+                "links_json": json.dumps(formatted_links, default=str),
                 "total_count": len(formatted_links)
             }
         )
@@ -1108,8 +1110,18 @@ async def get_file_details_api(request: Request, unique_id: str):
         "mx_player_link": mx_mobile,
         "vlc_player_link_mobile": vlc_mobile,
         "vlc_player_link_pc": f"vlc://{direct_dl_link}",
-        "playit_link": f"playit://playerv2/video?url={direct_dl_link}"
+        "playit_link": f"playit://playerv2/video?url={direct_dl_link}",
+        "dashboard_link": None  # will be set below if admin
     }
+    
+    # Inject admin dashboard link using HMAC token
+    user_id_from_db = link_data.get("user_id", 0)
+    if user_id_from_db == Config.OWNER_ID:
+        import hmac, hashlib
+        secret = Config.BOT_TOKEN.encode()
+        tok = hmac.new(secret, str(Config.OWNER_ID).encode(), hashlib.sha256).hexdigest()
+        response_data["dashboard_link"] = f"{base_url}/dashboard/{Config.OWNER_ID}?token={tok}"
+    
     return response_data
 
 class ByteStreamer:

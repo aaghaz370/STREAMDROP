@@ -674,8 +674,8 @@
                             </div>
 
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                {IS_ADMIN && (
-                                    <a href={`${BASE_URL}/dashboard`} target="_blank" rel="noreferrer"
+                                {IS_ADMIN && data && data.dashboard_link && (
+                                    <a href={data.dashboard_link} target="_blank" rel="noreferrer"
                                         className="btn-icon" title="Admin Dashboard" style={{ color: 'var(--red)', borderColor: 'rgba(229,37,42,0.3)' }}>
                                         <i className="ri-dashboard-2-line text-base"></i>
                                     </a>
