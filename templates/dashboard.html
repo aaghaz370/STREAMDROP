@@ -271,7 +271,7 @@
 </head>
 
 <body>
-    <script id="appData" type="application/json">{{ app_data_json }}</script>
+    <script id="appData" type="application/json">{{ app_data_json | safe }}</script>
 
     <div class="ambient"></div>
     <div id="root"></div>
