@@ -29,6 +29,7 @@ from pyrogram import raw
 from pyrogram.session import Session, Auth
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 import math
 
 # Project ki dusri files se important cheezein import karo
@@ -121,6 +122,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="templates"), name="static")
 
 app.add_middleware(
     CORSMiddleware,
@@ -413,6 +415,8 @@ async def callback_handlers(client: Client, cb: "CallbackQuery"):
     if cb.data == "help":
         await help_command(client, cb.message)
     elif cb.data == "my_links":
+        # Use cb.from_user.id — cb.message.from_user is the BOT itself
+        cb.message.from_user = cb.from_user
         await my_links_command(client, cb.message)
     elif cb.data == "plans":
         await show_plans_command(client, cb.message)
@@ -1010,22 +1014,18 @@ async def dashboard_page(request: Request, user_id: int, token: str):
         if not hmac.compare_digest(token, expected_token):
              raise HTTPException(status_code=403, detail="Invalid Token. Please use the link from the bot.")
              
-        # 2. Fetch User Links (All Active)
-        links = await db.get_all_user_active_links(user_id)
+        # 2. Fetch ALL User Links (active + expired)
+        links = await db.get_all_user_links_with_status(user_id)
         
         # 3. Format Data for Template
-        # Convert datetime objects to string for template safety if needed, 
-        # but Jinja handles them okay. We might want to pre-process for sorting.
         formatted_links = []
         for link in links:
-             # Basic Data
              f_name = link.get("file_name", "Unknown")
              f_size = link.get("file_size", "Unknown")
              u_id = link.get("_id")
              ts = link.get("timestamp", 0)
              expiry = link.get("expiry_date")
-             
-             # Derived Data
+             is_expired = link.get("is_expired", False)
              dl_link = f"{Config.BASE_URL}/dl/{u_id}/{f_name}"
              stream_link = f"{Config.BASE_URL}/show/{u_id}"
              date_str = link.get("date_str", "Unknown")
@@ -1037,7 +1037,8 @@ async def dashboard_page(request: Request, user_id: int, token: str):
                  "dl_link": dl_link,
                  "stream_link": stream_link,
                  "timestamp": ts,
-                 "expiry": expiry.strftime('%Y-%m-%d') if expiry else "Never"
+                 "expiry": expiry.strftime('%Y-%m-%d') if expiry else "Never",
+                 "is_expired": is_expired
              })
              
         import json
@@ -1062,7 +1063,11 @@ async def get_file_details_api(request: Request, unique_id: str):
     link_data = await db.get_link_full(unique_id)
     
     if not link_data:
-        raise HTTPException(status_code=404, detail="Link expired or invalid.")
+        raise HTTPException(status_code=404, detail="Link not found.")
+
+    # Expired link: return 410 with a proper message instead of generic 404
+    if link_data.get("is_expired"):
+        raise HTTPException(status_code=410, detail="This link has expired. Please share the file again in the bot to get a new link.")
     file_name = link_data.get("file_name")
     if not file_name:
         file_name = "file"

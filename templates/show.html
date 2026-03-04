@@ -369,18 +369,26 @@
         function App() {
             const [status, setStatus] = useState('loading');
             const [data, setData] = useState(null);
+            const [expiredMsg, setExpiredMsg] = useState('');
 
             useEffect(() => {
                 fetch(`${BASE_URL}/api/file/${FILE_ID}`)
-                    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+                    .then(async r => {
+                        if (r.status === 410) {
+                            const body = await r.json();
+                            setExpiredMsg(body.detail || 'This link has expired.');
+                            setStatus('expired');
+                            return null;
+                        }
+                        if (!r.ok) throw new Error();
+                        return r.json();
+                    })
                     .then(d => {
+                        if (!d) return; // expired case handled above
                         setData(d);
                         document.title = `${d.file_name} — StreamDrop`;
-
-                        // Set layout theme based on content
                         const isAudio = d.is_media && d.file_name.match(/\.(mp3|aac|wav|flac|m4a|ogg)$/i);
                         document.documentElement.setAttribute('data-layout', isAudio ? 'audio' : 'video');
-
                         setStatus('success');
                     })
                     .catch(() => setStatus('error'));
@@ -395,12 +403,26 @@
                 );
             }
 
+            if (status === 'expired') {
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
+                        <i className="ri-time-line text-7xl text-yellow-400 mb-4"></i>
+                        <h1 className="text-3xl font-bold mb-2">Link Expired</h1>
+                        <p className="text-[var(--text-muted)] mb-2 max-w-md">{expiredMsg}</p>
+                        <p className="text-xs text-[var(--text-muted)] mb-8 max-w-sm">To get a new stream link, simply send the file again to the bot and a fresh link will be generated instantly.</p>
+                        <a href="https://t.me/STREAM_DROP_BOT" target="_blank" className="btn-brand">
+                            <i className="ri-telegram-fill text-xl"></i> Get New Link
+                        </a>
+                    </div>
+                );
+            }
+
             if (status === 'error') {
                 return (
                     <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
                         <i className="ri-error-warning-line text-6xl text-[var(--primary)] mb-4"></i>
                         <h1 className="text-3xl font-bold mb-2">Content Unavailable</h1>
-                        <p className="text-[var(--text-muted)] mb-8 max-w-md">The file you are looking for has expired, been removed, or is inaccessible.</p>
+                        <p className="text-[var(--text-muted)] mb-8 max-w-md">The file you are looking for has been removed or is inaccessible.</p>
                         <a href="https://t.me/STREAM_DROP_BOT" target="_blank" className="btn-brand">
                             <i className="ri-telegram-fill text-xl"></i> Open Bot
                         </a>
@@ -410,9 +432,11 @@
 
             const isAudio = data.is_media && data.file_name.match(/\.(mp3|aac|wav|flac|m4a|ogg)$/i);
             const isPDF = data.file_name.match(/\.pdf$/i);
-            const isImage = data.file_name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
-            const isVideo = data.is_media && !isAudio;
-            const isMobile = window.innerWidth <= 768; // Simple check for mobile intents
+            // Photo_ prefix is added for photos sent directly in Telegram
+            const isImage = data.file_name.match(/\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/i)
+                || data.file_name.startsWith('Photo_');
+            const isVideo = data.is_media && !isAudio && !isImage;
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
             return (
                 <div>
@@ -421,7 +445,8 @@
                     {/* Header */}
                     <header className="relative z-20 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-[rgba(0,0,0,0.8)] to-transparent">
                         <div className="flex items-center gap-2">
-                            <i className="ri-stack-fill text-[var(--primary)] text-2xl"></i>
+                            <img src="/static/logo.jpg" alt="StreamDrop"
+                                style={{ width: 36, height: 36, borderRadius: 9, objectFit: 'cover' }} />
                             <span className="font-bold text-lg tracking-tight">StreamDrop</span>
                         </div>
                         <div className="flex items-center gap-3">

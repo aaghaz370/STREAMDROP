@@ -328,43 +328,57 @@
         /* ─── AssetRow ───────────────────────────────────────── */
         function AssetRow({ link, idx }) {
             const icon = getFileIcon(link.name);
-            const color = getFileColor(link.name);
+            const color = link.is_expired ? 'var(--muted)' : getFileColor(link.name);
             const delay = Math.min(idx, 9);
 
             return (
                 <div className={`asset-row rounded-2xl px-4 py-3 md:px-6 md:py-4 anim-fadeup row-${delay}`}
-                    style={{ opacity: 0 }}>
+                    style={{ opacity: 0, opacity: link.is_expired ? 0.55 : 1 }}>
                     <div className="flex items-center gap-3 md:gap-5">
                         {/* Icon */}
                         <div className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center"
-                            style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
+                            style={{ background: 'var(--surface-2)', border: `1px solid ${link.is_expired ? 'rgba(248,113,113,0.2)' : 'var(--border)'}` }}>
                             <i className={`${icon} text-2xl`} style={{ color }}></i>
                         </div>
 
                         {/* Name + Meta */}
                         <div className="flex-1 min-w-0">
                             <p className="font-semibold text-sm md:text-[15px] truncate leading-snug"
-                                style={{ color: 'var(--text)' }} title={link.name}>
+                                style={{ color: link.is_expired ? 'var(--muted)' : 'var(--text)' }} title={link.name}>
                                 {link.name}
                             </p>
                             <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 <span className="badge">{link.size}</span>
                                 <span className="badge hide-mobile">{formatDate(link.date)}</span>
-                                <span className="badge" style={{ color: '#f87171', borderColor: 'rgba(248,113,113,0.2)' }}>
-                                    Exp {link.expiry}
-                                </span>
+                                {link.is_expired ? (
+                                    <span className="badge" style={{ color: '#f87171', borderColor: 'rgba(248,113,113,0.35)', background: 'rgba(248,113,113,0.08)', fontWeight: 700 }}>
+                                        ✕ Expired
+                                    </span>
+                                ) : (
+                                    <span className="badge" style={{ color: '#34d399', borderColor: 'rgba(52,211,153,0.35)', background: 'rgba(52,211,153,0.08)', fontWeight: 700 }}>
+                                        ✓ Active · {link.expiry === 'Never' ? 'No expiry' : `Exp ${link.expiry}`}
+                                    </span>
+                                )}
                             </div>
                         </div>
 
                         {/* Actions */}
                         <div className="flex items-center gap-2 flex-shrink-0">
-                            <CopyButton text={link.stream_link} />
-                            <a href={link.stream_link} target="_blank" rel="noreferrer"
-                                className="btn-primary h-9 px-4 rounded-xl flex items-center gap-1.5 text-sm font-semibold"
-                                style={{ borderRadius: '10px' }}>
-                                <i className="ri-eye-line text-base"></i>
-                                <span className="hide-mobile">View</span>
-                            </a>
+                            {link.is_expired ? (
+                                <span className="text-xs font-semibold px-3 h-9 flex items-center rounded-xl" style={{ background: 'rgba(248,113,113,0.08)', color: '#f87171', border: '1px solid rgba(248,113,113,0.2)' }}>
+                                    Link Expired
+                                </span>
+                            ) : (
+                                <>
+                                    <CopyButton text={link.stream_link} />
+                                    <a href={link.stream_link} target="_blank" rel="noreferrer"
+                                        className="btn-primary h-9 px-4 rounded-xl flex items-center gap-1.5 text-sm font-semibold"
+                                        style={{ borderRadius: '10px' }}>
+                                        <i className="ri-eye-line text-base"></i>
+                                        <span className="hide-mobile">View</span>
+                                    </a>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -430,10 +444,8 @@
                         style={{ borderTop: 'none', borderLeft: 'none', borderRight: 'none' }}>
                         <div className="max-w-5xl mx-auto px-4 md:px-8 h-16 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                                    style={{ background: 'var(--red)', boxShadow: '0 4px 16px var(--red-glow)' }}>
-                                    <i className="ri-stack-line text-white text-lg"></i>
-                                </div>
+                                <img src="/static/logo.jpg" alt="StreamDrop"
+                                    style={{ width: 38, height: 38, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
                                 <div>
                                     <h1 className="font-bold text-base leading-tight" style={{ letterSpacing: '-0.02em' }}>StreamDrop</h1>
                                     <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'var(--muted)' }}>Dashboard</p>

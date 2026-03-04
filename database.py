@@ -66,10 +66,11 @@ class Database:
     async def get_link_full(self, unique_id):
         link = await self.col.find_one({"_id": unique_id})
         if link:
-            # Check Expiry
             expiry = link.get("expiry_date")
             if expiry and expiry < datetime.datetime.now():
-                return None
+                link["is_expired"] = True  # Mark as expired but still return data
+            else:
+                link["is_expired"] = False
             return link
         return None
 
@@ -126,7 +127,7 @@ class Database:
         return await cursor.to_list(length=limit)
 
     async def get_all_user_active_links(self, user_id):
-        # For Dashboard (ALL links)
+        """Active-only links for Up Next queue."""
         now = datetime.datetime.now()
         query = {
             "user_id": user_id,
@@ -138,6 +139,16 @@ class Database:
         }
         cursor = self.col.find(query).sort("timestamp", -1)
         return await cursor.to_list(length=None)
+
+    async def get_all_user_links_with_status(self, user_id):
+        """ALL links with is_expired flag — for full dashboard view."""
+        now = datetime.datetime.now()
+        cursor = self.col.find({"user_id": user_id}).sort("timestamp", -1)
+        docs = await cursor.to_list(length=None)
+        for doc in docs:
+            expiry = doc.get("expiry_date")
+            doc["is_expired"] = bool(expiry and expiry < now)
+        return docs
 
     async def get_all_links(self):
         cursor = self.col.find().sort("timestamp", -1)
