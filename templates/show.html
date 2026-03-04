@@ -347,6 +347,7 @@
     <!-- Plyr (needed before React mounts) -->
     <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 
+    {% raw %}
     <script type="text/babel">
         const { useState, useEffect, useCallback, useRef } = React;
 
@@ -716,6 +717,7 @@
 
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
+    {% endraw %}
 </body>
 
 </html>
