@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <meta name="description" content="StreamDrop — Secure media streaming.">
-    <title>StreamDrop</title>
+    <title>StreamDrop Player</title>
 
     <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,314 +18,71 @@
     <!-- Remix Icons -->
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Netflix+Sans:wght@300;400;500;700&family=Outfit:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
 
     <style>
         :root {
-            --bg: #050505;
-            --surface: #0d0d0d;
-            --surface-2: #141414;
-            --border: #1e1e1e;
-            --red: #e5252a;
-            --red-glow: rgba(229, 37, 42, 0.3);
-            --red-dim: rgba(229, 37, 42, 0.07);
-            --text: #f0f0f0;
-            --muted: #606060;
-            --muted-2: #2a2a2a;
+            --bg: #141414;
+            /* Netflix black */
+            --bg-audio: #121212;
+            /* Spotify black */
+            --surface: #181818;
+            --surface-hover: #282828;
+            --border: #333333;
+            --primary: #E50914;
+            /* Netflix red */
+            --primary-audio: #1DB954;
+            /* Spotify green */
+            --text-main: #FFFFFF;
+            --text-muted: #B3B3B3;
+            --font-main: 'Outfit', sans-serif;
+            --radius-btn: 4px;
         }
 
-        [data-theme="light"] {
-            --bg: #f7f7f8;
-            --surface: #ffffff;
-            --surface-2: #f1f1f3;
-            --border: #e2e2e7;
-            --red: #dc1f24;
-            --red-glow: rgba(220, 31, 36, 0.18);
-            --red-dim: rgba(220, 31, 36, 0.05);
-            --text: #111111;
-            --muted: #888888;
-            --muted-2: #d8d8dc;
-        }
-
-        *,
-        *::before,
-        *::after {
-            box-sizing: border-box;
-        }
-
-        html {
-            scroll-behavior: smooth;
+        [data-layout="audio"] {
+            --bg: var(--bg-audio);
+            --primary: var(--primary-audio);
+            --surface: #181818;
+            --surface-hover: #2a2a2a;
+            --border: #282828;
+            --radius-btn: 50px;
         }
 
         body,
         #root {
-            font-family: 'Inter', -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
             background: var(--bg);
-            color: var(--text);
+            color: var(--text-main);
+            font-family: var(--font-main);
             min-height: 100vh;
             -webkit-font-smoothing: antialiased;
-            -webkit-tap-highlight-color: transparent;
-            transition: background 0.4s, color 0.37s;
             overflow-x: hidden;
+            transition: background 0.3s;
         }
 
-        /* Ambient blobs */
-        .orb {
-            position: fixed;
-            border-radius: 50%;
-            filter: blur(90px);
+        /* Ambient effects */
+        .ambient-glow {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50vh;
+            background: linear-gradient(to bottom, rgba(229, 9, 20, 0.15), transparent);
             pointer-events: none;
             z-index: 0;
-            opacity: 0.22;
+            transition: background 0.5s;
         }
 
-        .orb-1 {
-            width: 55vw;
-            height: 55vw;
-            top: -20%;
-            left: -15%;
-            background: var(--red);
-            animation: drift 14s ease-in-out infinite alternate;
-        }
-
-        .orb-2 {
-            width: 35vw;
-            height: 35vw;
-            bottom: -15%;
-            right: -10%;
-            background: #1a0000;
-            animation: drift 18s ease-in-out infinite alternate-reverse;
-        }
-
-        @keyframes drift {
-            0% {
-                transform: translate(0, 0);
-            }
-
-            100% {
-                transform: translate(22px, 32px);
-            }
-        }
-
-        /* Glass */
-        .glass {
-            background: rgba(13, 13, 13, 0.72);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
-            border: 1px solid var(--border);
-        }
-
-        [data-theme="light"] .glass {
-            background: rgba(255, 255, 255, 0.82);
-        }
-
-        /* Card reveal */
-        @keyframes revealCard {
-            from {
-                opacity: 0;
-                transform: translateY(28px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .card-anim {
-            animation: revealCard 0.65s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-
-        /* Loader dots */
-        .dot {
-            display: inline-block;
-            border-radius: 50%;
-            background: var(--red);
-            animation: dotBounce 1.4s infinite ease-in-out both;
-        }
-
-        .dot-1 {
-            animation-delay: -0.32s;
-        }
-
-        .dot-2 {
-            animation-delay: -0.16s;
-        }
-
-        @keyframes dotBounce {
-
-            0%,
-            80%,
-            100% {
-                transform: scale(0.1);
-                opacity: 0.4;
-            }
-
-            40% {
-                transform: scale(1);
-                opacity: 1;
-            }
-        }
-
-        /* Plyr */
-        .plyr {
-            border-radius: 16px;
-            --plyr-color-main: var(--red);
-            --plyr-video-background: #000;
-            --plyr-menu-background: #111;
-            --plyr-menu-color: #fff;
-            font-family: 'Inter', sans-serif;
-        }
-
-        .plyr--video {
-            border-radius: 16px;
-            overflow: hidden;
-        }
-
-        /* Buttons */
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 0 20px;
-            height: 48px;
-            border-radius: 14px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            text-decoration: none;
-            transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-            border: none;
-            white-space: nowrap;
-            font-family: 'Inter', sans-serif;
-        }
-
-        .btn:active {
-            transform: scale(0.92);
-        }
-
-        .btn-primary {
-            background: var(--red);
-            color: #fff;
-            box-shadow: 0 4px 20px var(--red-glow);
-        }
-
-        .btn-primary:hover {
-            filter: brightness(1.1);
-            box-shadow: 0 6px 28px var(--red-glow);
-        }
-
-        .btn-outline {
-            background: var(--surface-2);
-            color: var(--text);
-            border: 1px solid var(--border);
-        }
-
-        .btn-outline:hover {
-            border-color: var(--red);
-            color: var(--red);
-        }
-
-        .btn-icon {
-            width: 40px;
-            height: 40px;
-            padding: 0;
-            background: var(--surface-2);
-            color: var(--muted);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: border-color 0.2s, color 0.2s, transform 0.15s;
-            font-family: 'Inter', sans-serif;
-        }
-
-        .btn-icon:hover {
-            border-color: var(--red);
-            color: var(--red);
-        }
-
-        .btn-icon:active {
-            transform: scale(0.88);
-        }
-
-        /* App Stream buttons */
-        .stream-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            height: 42px;
-            border-radius: 12px;
-            font-size: 13px;
-            font-weight: 600;
-            border: 1px solid var(--border);
-            background: var(--surface-2);
-            cursor: pointer;
-            transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
-            text-decoration: none;
-            font-family: 'Inter', sans-serif;
-            color: var(--muted);
-        }
-
-        .stream-btn:active {
-            transform: scale(0.91);
-        }
-
-        .stream-btn.vlc {
-            color: #fb923c;
-            border-color: rgba(251, 146, 60, 0.25);
-        }
-
-        .stream-btn.vlc:hover {
-            background: rgba(251, 146, 60, 0.09);
-            border-color: #fb923c;
-        }
-
-        .stream-btn.mx {
-            color: #60a5fa;
-            border-color: rgba(96, 165, 250, 0.25);
-        }
-
-        .stream-btn.mx:hover {
-            background: rgba(96, 165, 250, 0.09);
-            border-color: #60a5fa;
-        }
-
-        .stream-btn.playit {
-            color: #34d399;
-            border-color: rgba(52, 211, 153, 0.25);
-        }
-
-        .stream-btn.playit:hover {
-            background: rgba(52, 211, 153, 0.09);
-            border-color: #34d399;
-        }
-
-        .stream-btn.dim {
-            opacity: 0.4;
-            cursor: not-allowed;
-        }
-
-        /* Badge */
-        .badge-tag {
-            font-size: 10px;
-            font-weight: 700;
-            letter-spacing: 0.07em;
-            padding: 3px 9px;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            color: var(--muted);
-            background: var(--surface-2);
-            text-transform: uppercase;
+        [data-layout="audio"] .ambient-glow {
+            background: linear-gradient(to bottom, rgba(29, 185, 84, 0.15), transparent);
         }
 
         /* Scrollbar */
         ::-webkit-scrollbar {
-            width: 5px;
+            width: 8px;
         }
 
         ::-webkit-scrollbar-track {
@@ -333,384 +90,439 @@
         }
 
         ::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 99px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Plyr Overrides for Premium feel */
+        .plyr {
+            --plyr-color-main: var(--primary);
+            --plyr-video-background: #000;
+            --plyr-menu-background: rgba(24, 24, 24, 0.95);
+            --plyr-menu-color: #fff;
+            --plyr-font-family: var(--font-main);
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        [data-layout="audio"] .plyr {
+            border-radius: 12px;
+            box-shadow: none;
+            --plyr-audio-controls-background: transparent;
+            --plyr-audio-control-color: var(--text-muted);
+            --plyr-audio-control-color-hover: #fff;
+        }
+
+        /* Buttons */
+        .btn-brand {
+            background: var(--primary);
+            color: #fff;
+            border-radius: var(--radius-btn);
+            padding: 10px 24px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s, filter 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-brand:hover {
+            filter: brightness(1.1);
+            transform: scale(1.02);
+        }
+
+        .btn-brand:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border-radius: var(--radius-btn);
+            padding: 10px 24px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s, transform 0.2s;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.02);
+        }
+
+        /* Sidebar item hover */
+        .sidebar-item {
+            transition: background 0.2s, color 0.2s;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .sidebar-item:hover {
+            background: var(--surface-hover);
+            color: #fff;
+        }
+
+        .sidebar-item.active {
+            color: var(--primary);
+        }
+
+        /* Layout Grid */
+        .app-layout {
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 24px;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 24px;
+            position: relative;
+            z-index: 10;
+        }
+
+        @media (max-width: 1024px) {
+            .app-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Audio Layout specifics */
+        .audio-cover {
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .audio-cover:hover {
+            transform: scale(1.03);
         }
     </style>
 </head>
 
 <body>
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div id="root"></div>
-
-    <!-- Plyr (needed before React mounts) -->
+    <!-- Plyr -->
     <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+
+    <div id="root"></div>
 
     {% raw %}
     <script type="text/babel">
-        const { useState, useEffect, useCallback, useRef } = React;
+        const { useState, useEffect, useRef, useMemo } = React;
 
         const BASE_URL = window.location.origin;
         const FILE_ID = window.location.pathname.split('/').pop();
         const urlParams = new URLSearchParams(window.location.search);
         const IS_ADMIN = urlParams.get('admin') === 'true';
 
-        /* ─── Loader ──────────────────────────────────────────── */
-        function Loader() {
-            return (
-                <div className="flex flex-col items-center justify-center py-24 gap-5">
-                    <div style={{ display: 'inline-flex', gap: '6px' }}>
-                        <span className="dot dot-1" style={{ width: 10, height: 10 }}></span>
-                        <span className="dot dot-2" style={{ width: 10, height: 10 }}></span>
-                        <span className="dot" style={{ width: 10, height: 10 }}></span>
-                    </div>
-                    <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.1em', color: 'var(--muted)', textTransform: 'uppercase' }}>
-                        Fetching Stream
-                    </p>
-                </div>
-            );
-        }
-
-        /* ─── Error ───────────────────────────────────────────── */
-        function ErrorState() {
-            return (
-                <div className="flex flex-col items-center justify-center py-24 gap-5 text-center">
-                    <div style={{ position: 'relative' }}>
-                        <div style={{
-                            position: 'absolute', inset: '-8px',
-                            background: 'rgba(229,37,42,0.15)',
-                            borderRadius: '50%', filter: 'blur(20px)'
-                        }} />
-                        <div className="relative w-20 h-20 rounded-2xl flex items-center justify-center"
-                            style={{ background: 'var(--surface-2)', border: '1px solid rgba(229,37,42,0.25)' }}>
-                            <i className="ri-lock-2-line text-[40px]" style={{ color: 'var(--red)' }}></i>
-                        </div>
-                    </div>
-                    <div>
-                        <h2 style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Access Denied</h2>
-                        <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, maxWidth: 280, margin: '0 auto' }}>
-                            This link has expired or is no longer valid. Request a new one from the bot.
-                        </p>
-                    </div>
-                    <a href="https://t.me/STREAM_DROP_BOT" target="_blank" rel="noreferrer" className="btn btn-outline">
-                        <i className="ri-send-plane-fill text-lg"></i> Open Telegram Bot
-                    </a>
-                </div>
-            );
-        }
-
-        /* ─── Icon Button ─────────────────────────────────────── */
-        function IconBtn({ icon, title, onClick, successIcon, successColor }) {
-            const [active, setActive] = useState(false);
-            const handle = useCallback(() => {
-                onClick?.();
-                if (successIcon) { setActive(true); setTimeout(() => setActive(false), 1800); }
-            }, [onClick, successIcon]);
-
-            return (
-                <button className="btn-icon" title={title} onClick={handle}
-                    style={active ? { borderColor: successColor || '#10b981', color: successColor || '#10b981' } : {}}>
-                    <i className={`${active && successIcon ? successIcon : icon} text-base`}></i>
-                </button>
-            );
-        }
-
-        /* ─── Video Player ────────────────────────────────────── */
-        function VideoPlayer({ src }) {
-            const containerRef = useRef(null);
-            const playerRef = useRef(null);
-            const [loading, setLoading] = useState(true);
+        /* ─── Video Player Component ─── */
+        function VideoPlayer({ src, title }) {
+            const videoRef = useRef(null);
 
             useEffect(() => {
-                if (!containerRef.current) return;
-                const video = document.createElement('video');
-                video.src = src;
-                video.controls = true;
-                video.playsInline = true;
-                video.crossOrigin = 'anonymous';
-                video.style.cssText = 'width:100%;height:100%;display:block;';
-                containerRef.current.appendChild(video);
-
-                const p = new Plyr(video, {
+                if (!videoRef.current) return;
+                const p = new Plyr(videoRef.current, {
                     controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'captions', 'settings', 'pip', 'airplay', 'fullscreen'],
-                    keyboard: { focused: true, global: false },
-                    resetOnEnd: true,
+                    settings: ['quality', 'speed'],
+                    keyboard: { focused: true, global: true },
+                    autoplay: true,
                 });
-                playerRef.current = p;
-                p.on('ready', () => setLoading(false));
-                p.on('canplay', () => setLoading(false));
-                p.on('playing', () => setLoading(false));
-
-                return () => { try { p.destroy(); } catch { } };
+                return () => p.destroy();
             }, [src]);
 
             return (
-                <div style={{ position: 'relative', width: '100%', background: '#000', borderRadius: 16, overflow: 'hidden' }}>
-                    {loading && (
-                        <div style={{
-                            position: 'absolute', inset: 0, zIndex: 10,
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                            background: 'rgba(0,0,0,0.92)', gap: 12
-                        }}>
-                            <div style={{ display: 'inline-flex', gap: '6px' }}>
-                                <span className="dot dot-1" style={{ width: 9, height: 9 }}></span>
-                                <span className="dot dot-2" style={{ width: 9, height: 9 }}></span>
-                                <span className="dot" style={{ width: 9, height: 9 }}></span>
-                            </div>
-                            <p style={{ fontSize: 10, fontWeight: 700, color: '#555', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Loading</p>
-                        </div>
-                    )}
-                    <div ref={containerRef}></div>
+                <div style={{ borderRadius: 8, overflow: 'hidden', background: '#000' }}>
+                    <video ref={videoRef} playsInline crossOrigin="anonymous">
+                        <source src={src} />
+                    </video>
                 </div>
             );
         }
 
-        /* ─── Audio Player ────────────────────────────────────── */
-        function AudioPlayer({ src, name }) {
+        /* ─── Audio Player Component ─── */
+        function AudioPlayer({ src, title }) {
             const audioRef = useRef(null);
 
             useEffect(() => {
                 if (!audioRef.current) return;
                 const p = new Plyr(audioRef.current, {
-                    controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume'],
-                    autoplay: false,
+                    controls: ['play', 'progress', 'current-time', 'duration', 'mute', 'volume'],
+                    autoplay: true,
                 });
-                return () => { try { p.destroy(); } catch { } };
+                return () => p.destroy();
             }, [src]);
 
             return (
-                <div className="rounded-2xl p-5" style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}>
-                    <div className="flex items-center gap-4 mb-5">
-                        <div className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0"
-                            style={{ background: 'var(--red)', boxShadow: '0 6px 20px var(--red-glow)' }}>
-                            <i className="ri-music-2-fill text-3xl text-white"></i>
-                        </div>
-                        <div className="min-w-0">
-                            <p className="font-semibold text-sm truncate">{name}</p>
-                            <p style={{ fontSize: 12, color: 'var(--muted)' }}>Audio Track</p>
+                <div className="flex flex-col items-center py-8">
+                    <div className="audio-cover w-64 h-64 md:w-80 md:h-80 bg-gradient-to-br from-[#2a2a2a] to-[#121212] rounded-xl flex items-center justify-center mb-8 relative overflow-hidden group">
+                        <i className="ri-music-2-line text-6xl text-[rgba(255,255,255,0.1)] group-hover:scale-110 transition-transform duration-500"></i>
+                        <div className="absolute inset-0 bg-gradient-to-t from-[rgba(0,0,0,0.6)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    </div>
+
+                    <div className="w-full max-w-2xl px-6">
+                        <h2 className="text-2xl md:text-4xl font-bold text-center mb-2 tracking-tight text-white">{title}</h2>
+                        <p className="text-[#b3b3b3] text-center mb-10 text-sm md:text-base">StreamDrop Audio Stream</p>
+
+                        <div className="px-2">
+                            <audio ref={audioRef} crossOrigin="anonymous">
+                                <source src={src} />
+                            </audio>
                         </div>
                     </div>
-                    <audio ref={audioRef} controls crossOrigin="anonymous" preload="metadata" style={{ display: 'none' }}>
-                        <source src={src} />
-                    </audio>
                 </div>
             );
         }
 
-        /* ─── App Stream Buttons ──────────────────────────────── */
-        function StreamButtons({ data, isMobile }) {
-            const copyVlc = useCallback(() => {
-                navigator.clipboard.writeText(data.direct_dl_link).then(() => {
-                    alert('Stream URL copied.\n\nTo play in VLC:\n1. Open VLC\n2. Media > Open Network Stream\n3. Paste the URL and play.');
-                });
-            }, [data.direct_dl_link]);
+        /* ─── Sidebar / Up Next Queue ─── */
+        function SidebarQueue({ currentId, files }) {
+            const [filter, setFilter] = useState('all');
+            const [search, setSearch] = useState('');
 
-            if (isMobile) {
+            const filteredFiles = useMemo(() => {
+                if (!files) return [];
+                return files.filter(f => {
+                    if (filter !== 'all' && f.type !== filter) return false;
+                    if (search && !f.name.toLowerCase().includes(search.toLowerCase())) return false;
+                    return true;
+                });
+            }, [files, filter, search]);
+
+            if (!files || files.length === 0) return null;
+
+            return (
+                <div className="flex flex-col h-full bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden p-4">
+                    <h3 className="text-lg font-bold mb-4 text-white">Up Next</h3>
+
+                    {/* Search & Filters */}
+                    <div className="mb-4 space-y-3">
+                        <div className="relative">
+                            <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"></i>
+                            <input
+                                type="text"
+                                placeholder="Search files..."
+                                className="w-full bg-[var(--bg)] text-sm text-white rounded-md pl-9 pr-3 py-2 border border-[var(--border)] focus:border-[var(--primary)] outline-none transition-colors"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex gap-2 text-xs font-semibold">
+                            {['all', 'video', 'audio'].map(t => (
+                                <button key={t}
+                                    onClick={() => setFilter(t)}
+                                    className={`px-3 py-1.5 rounded-full capitalize transition-colors ${filter === t ? 'bg-[var(--primary)] text-white' : 'bg-[rgba(255,255,255,0.1)] text-[var(--text-muted)] hover:text-white'}`}>
+                                    {t}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* File List */}
+                    <div className="flex-1 overflow-y-auto pr-2 pb-4 space-y-1">
+                        {filteredFiles.length > 0 ? filteredFiles.map(f => (
+                            <a href={f.stream_link} key={f.id}
+                                className={`sidebar-item flex items-start gap-3 p-2.5 ${f.id === currentId ? 'active bg-[rgba(255,255,255,0.05)]' : ''}`}>
+                                <div className="w-10 h-10 rounded-md bg-[var(--bg)] flex items-center justify-center flex-shrink-0">
+                                    <i className={`${f.type === 'video' ? 'ri-play-line' : f.type === 'audio' ? 'ri-music-2-line' : 'ri-file-3-line'} text-lg`}></i>
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <p className="font-semibold text-sm truncate leading-tight mb-1" title={f.name}>
+                                        {f.name}
+                                    </p>
+                                    <p className="text-xs text-[var(--text-muted)] opacity-80">{f.size}</p>
+                                </div>
+                                {f.id === currentId && (
+                                    <i className="ri-equalizer-line text-xs animate-pulse text-[var(--primary)] mt-1"></i>
+                                )}
+                            </a>
+                        )) : (
+                            <p className="text-sm text-[var(--text-muted)] text-center py-8">No files match your search.</p>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        /* ─── Main Application ─── */
+        function App() {
+            const [status, setStatus] = useState('loading');
+            const [data, setData] = useState(null);
+
+            useEffect(() => {
+                fetch(`${BASE_URL}/api/file/${FILE_ID}`)
+                    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+                    .then(d => {
+                        setData(d);
+                        document.title = `${d.file_name} — StreamDrop`;
+
+                        // Set layout theme based on content
+                        const isAudio = d.is_media && d.file_name.match(/\.(mp3|aac|wav|flac|m4a|ogg)$/i);
+                        document.documentElement.setAttribute('data-layout', isAudio ? 'audio' : 'video');
+
+                        setStatus('success');
+                    })
+                    .catch(() => setStatus('error'));
+            }, []);
+
+            if (status === 'loading') {
                 return (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                        <a href={data.vlc_player_link_mobile} className="stream-btn vlc">
-                            <i className="ri-play-circle-fill text-xl"></i> VLC
-                        </a>
-                        <a href={data.mx_player_link} className="stream-btn mx">
-                            <i className="ri-play-circle-fill text-xl"></i> MX
-                        </a>
-                        <a href={data.playit_link} className="stream-btn playit">
-                            <i className="ri-play-circle-fill text-xl"></i> PlayIt
+                    <div className="min-h-screen flex flex-col items-center justify-center">
+                        <div className="spinner mb-4"></div>
+                        <p className="text-[var(--text-muted)] tracking-widest text-sm uppercase font-bold">Connecting</p>
+                    </div>
+                );
+            }
+
+            if (status === 'error') {
+                return (
+                    <div className="min-h-screen flex flex-col items-center justify-center px-4 text-center">
+                        <i className="ri-error-warning-line text-6xl text-[var(--primary)] mb-4"></i>
+                        <h1 className="text-3xl font-bold mb-2">Content Unavailable</h1>
+                        <p className="text-[var(--text-muted)] mb-8 max-w-md">The file you are looking for has expired, been removed, or is inaccessible.</p>
+                        <a href="https://t.me/STREAM_DROP_BOT" target="_blank" className="btn-brand">
+                            <i className="ri-telegram-fill text-xl"></i> Open Bot
                         </a>
                     </div>
                 );
             }
 
-            return (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-                    <button onClick={copyVlc} className="stream-btn vlc">
-                        <i className="ri-play-circle-fill text-xl"></i> VLC (PC)
-                    </button>
-                    <button onClick={() => alert('MX Player is a mobile-only app.')} className="stream-btn dim">
-                        <i className="ri-information-line text-xl"></i> MX Player
-                    </button>
-                    <button onClick={() => alert('PlayIt is a mobile-only app.')} className="stream-btn dim">
-                        <i className="ri-information-line text-xl"></i> PlayIt
-                    </button>
-                </div>
-            );
-        }
-
-        /* ─── Embed Section ───────────────────────────────────── */
-        function EmbedSection({ embedLink }) {
-            const code = `<iframe src="${embedLink}" width="100%" height="560" frameborder="0" allowfullscreen></iframe>`;
-            const [copied, setCopied] = useState(false);
-            const handleCopy = () => {
-                navigator.clipboard.writeText(code);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1800);
-            };
-            return (
-                <div style={{ marginTop: 20, padding: 16, borderRadius: 16, background: 'var(--red-dim)', border: '1px solid rgba(229,37,42,0.18)' }}>
-                    <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--red)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <i className="ri-code-s-slash-line"></i> Embed Code — Admin
-                    </p>
-                    <div style={{ position: 'relative' }}>
-                        <textarea readOnly value={code}
-                            style={{ width: '100%', height: 60, background: '#000', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', fontSize: 11, color: '#f0f0f0', fontFamily: 'monospace', resize: 'none', outline: 'none' }} />
-                        <button onClick={handleCopy}
-                            style={{ position: 'absolute', top: 8, right: 8, padding: '4px 12px', borderRadius: 8, background: copied ? '#10b981' : 'var(--red)', color: '#fff', fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'background 0.2s' }}>
-                            {copied ? <i className="ri-check-line"></i> : <i className="ri-clipboard-line"></i>}
-                            &nbsp;{copied ? 'Copied' : 'Copy'}
-                        </button>
-                    </div>
-                </div>
-            );
-        }
-
-        /* ─── Success Content ─────────────────────────────────── */
-        function SuccessContent({ data }) {
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             const isAudio = data.is_media && data.file_name.match(/\.(mp3|aac|wav|flac|m4a|ogg)$/i);
             const isPDF = data.file_name.match(/\.pdf$/i);
             const isImage = data.file_name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i);
             const isVideo = data.is_media && !isAudio;
-
-            let fileType = 'FILE';
-            let fileIcon = 'ri-file-3-line';
-            if (isAudio) { fileType = 'AUDIO'; fileIcon = 'ri-music-2-line'; }
-            else if (isVideo) { fileType = 'VIDEO'; fileIcon = 'ri-film-line'; }
-            else if (isPDF) { fileType = 'PDF'; fileIcon = 'ri-file-pdf-2-line'; }
-            else if (isImage) { fileType = 'IMAGE'; fileIcon = 'ri-image-2-line'; }
+            const isMobile = window.innerWidth <= 768; // Simple check for mobile intents
 
             return (
                 <div>
-                    {/* Media Area */}
-                    {isAudio && <div style={{ marginBottom: 20 }}><AudioPlayer src={data.direct_dl_link} name={data.file_name} /></div>}
-                    {isVideo && <div style={{ marginBottom: 20 }}><VideoPlayer src={data.direct_dl_link} /></div>}
-                    {isPDF && (
-                        <div style={{ height: 520, background: 'var(--surface-2)', borderRadius: 16, overflow: 'hidden', marginBottom: 20, border: '1px solid var(--border)' }}>
-                            <iframe src={data.direct_dl_link} style={{ width: '100%', height: '100%', border: 'none' }}></iframe>
+                    <div className="ambient-glow"></div>
+
+                    {/* Header */}
+                    <header className="relative z-20 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-[rgba(0,0,0,0.8)] to-transparent">
+                        <div className="flex items-center gap-2">
+                            <i className="ri-stack-fill text-[var(--primary)] text-2xl"></i>
+                            <span className="font-bold text-lg tracking-tight">StreamDrop</span>
                         </div>
-                    )}
-                    {isImage && (
-                        <div style={{ background: 'var(--surface-2)', borderRadius: 16, padding: 16, marginBottom: 20, textAlign: 'center', border: '1px solid var(--border)' }}>
-                            <img src={data.direct_dl_link} alt={data.file_name} style={{ maxWidth: '100%', maxHeight: 480, objectFit: 'contain', borderRadius: 12 }} />
-                        </div>
-                    )}
-
-                    {/* File Info Row */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 20 }}>
-                        <div style={{ width: 44, height: 44, borderRadius: 12, background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <i className={`${fileIcon} text-2xl`} style={{ color: 'var(--red)' }}></i>
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <p style={{ fontWeight: 700, fontSize: 15, lineHeight: 1.35, wordBreak: 'break-all', marginBottom: 6 }}>{data.file_name}</p>
-                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                                <span className="badge-tag">{fileType}</span>
-                                <span className="badge-tag" style={{ color: '#60d394', borderColor: 'rgba(96,211,148,0.2)' }}>{data.file_size}</span>
-                                <span className="badge-tag" style={{ color: '#34d399', borderColor: 'rgba(52,211,153,0.2)' }}>READY</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                        <a href={data.direct_dl_link} download className="btn btn-primary" style={{ width: '100%' }}>
-                            <i className="ri-download-cloud-2-fill text-xl"></i>
-                            Download {fileType === 'AUDIO' ? 'Audio' : fileType === 'VIDEO' ? 'Video' : fileType === 'PDF' ? 'PDF' : fileType === 'IMAGE' ? 'Image' : 'File'}
-                        </a>
-
-                        {isVideo && <StreamButtons data={data} isMobile={isMobile} />}
-                    </div>
-
-                    {/* Admin Embed */}
-                    {IS_ADMIN && data.embed_link && <EmbedSection embedLink={data.embed_link} />}
-                </div>
-            );
-        }
-
-        /* ─── App ─────────────────────────────────────────────── */
-        function App() {
-            const [status, setStatus] = useState('loading'); // loading | error | success
-            const [data, setData] = useState(null);
-            const [theme, setTheme] = useState(() => localStorage.getItem('univora_theme') || 'dark');
-            const [copied, setCopied] = useState(false);
-
-            useEffect(() => {
-                document.documentElement.setAttribute('data-theme', theme === 'light' ? 'light' : '');
-                localStorage.setItem('univora_theme', theme);
-            }, [theme]);
-
-            useEffect(() => {
-                fetch(`${BASE_URL}/api/file/${FILE_ID}`)
-                    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-                    .then(d => { setData(d); document.title = `${d.file_name} — StreamDrop`; setStatus('success'); })
-                    .catch(() => setStatus('error'));
-            }, []);
-
-            const toggleTheme = () => setTheme(t => t === 'dark' ? 'light' : 'dark');
-
-            const copyLink = useCallback(() => {
-                navigator.clipboard.writeText(window.location.href);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1800);
-            }, []);
-
-            const shareLink = useCallback(() => {
-                if (navigator.share) navigator.share({ title: document.title, url: window.location.href });
-                else copyLink();
-            }, [copyLink]);
-
-            return (
-                <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 16px', position: 'relative', zIndex: 1 }}>
-                    <div className="glass card-anim" style={{ width: '100%', maxWidth: 620, borderRadius: 24, overflow: 'hidden', boxShadow: '0 32px 80px rgba(0,0,0,0.4)' }}>
-
-                        {/* ─ Header ─ */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <div style={{ width: 38, height: 38, borderRadius: 11, background: 'var(--red)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px var(--red-glow)', flexShrink: 0 }}>
-                                    <i className="ri-play-fill text-white text-xl"></i>
-                                </div>
-                                <div>
-                                    <p style={{ fontWeight: 700, fontSize: 15, letterSpacing: '-0.02em' }}>StreamDrop</p>
-                                    <p style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Secure Streaming</p>
-                                </div>
-                            </div>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                {IS_ADMIN && data && data.dashboard_link && (
-                                    <a href={data.dashboard_link} target="_blank" rel="noreferrer"
-                                        className="btn-icon" title="Admin Dashboard" style={{ color: 'var(--red)', borderColor: 'rgba(229,37,42,0.3)' }}>
-                                        <i className="ri-dashboard-2-line text-base"></i>
-                                    </a>
-                                )}
-                                <button className="btn-icon" title="Copy Link" onClick={copyLink}
-                                    style={copied ? { borderColor: '#10b981', color: '#10b981' } : {}}>
-                                    <i className={`${copied ? 'ri-check-line' : 'ri-links-line'} text-base`}></i>
-                                </button>
-                                <button className="btn-icon" title="Share" onClick={shareLink}>
-                                    <i className="ri-share-forward-line text-base"></i>
-                                </button>
-                                <button className="btn-icon" title="Toggle Theme" onClick={toggleTheme}>
-                                    <i className={`${theme === 'dark' ? 'ri-moon-line' : 'ri-sun-line'} text-base`}></i>
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* ─ Body ─ */}
-                        <div style={{ padding: '24px 20px' }}>
-                            {status === 'loading' && <Loader />}
-                            {status === 'error' && <ErrorState />}
-                            {status === 'success' && data && <SuccessContent data={data} />}
-                        </div>
-
-                        {/* ─ Footer ─ */}
-                        <div style={{ borderTop: '1px solid var(--border)', height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.15)' }}>
-                            <a href="https://univora.site" target="_blank" rel="noreferrer"
-                                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 600, color: 'var(--muted)', textDecoration: 'none', letterSpacing: '0.04em' }}>
-                                <i className="ri-global-line text-sm"></i>
-                                this platform by&nbsp;<span style={{ color: 'var(--red)', fontWeight: 700 }}>UNIVORA</span>
+                        <div className="flex items-center gap-3">
+                            {IS_ADMIN && data.dashboard_link && (
+                                <a href={data.dashboard_link} target="_blank" className="btn-secondary rounded-full px-4 py-2 text-sm !bg-[rgba(255,255,255,0.05)] text-[var(--primary-audio)] !border !border-[var(--primary-audio)] hover:!bg-[rgba(29,185,84,0.1)]">
+                                    <i className="ri-dashboard-fill"></i> Admin
+                                </a>
+                            )}
+                            <a href="https://univora.site" target="_blank" className="text-xs font-semibold text-[var(--text-muted)] hover:text-white transition-colors">
+                                Powered by <span className="text-white">UNIVORA</span>
                             </a>
                         </div>
+                    </header>
 
-                    </div>
+                    {/* Main Layout Grid */}
+                    <main className="app-layout">
+
+                        {/* Media Section */}
+                        <div className="flex flex-col min-w-0">
+
+                            {/* Player / Viewer */}
+                            <div className="w-full mb-6">
+                                {isVideo && <VideoPlayer src={data.direct_dl_link} title={data.file_name} />}
+                                {isAudio && <AudioPlayer src={data.direct_dl_link} title={data.file_name} />}
+
+                                {isPDF && (
+                                    <div className="w-full aspect-[3/4] md:aspect-video rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--surface)]">
+                                        <iframe src={data.direct_dl_link} className="w-full h-full border-none"></iframe>
+                                    </div>
+                                )}
+
+                                {isImage && (
+                                    <div className="w-full rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--surface)] p-4 flex justify-center items-center" style={{ minHeight: '60vh' }}>
+                                        <img src={data.direct_dl_link} alt={data.file_name} className="max-w-full max-h-[80vh] object-contain rounded-md shadow-2xl" />
+                                    </div>
+                                )}
+
+                                {(!isVideo && !isAudio && !isPDF && !isImage) && (
+                                    <div className="w-full py-24 rounded-lg border border-[var(--border)] bg-[var(--surface)] flex flex-col items-center justify-center">
+                                        <i className="ri-file-zip-line text-6xl text-[var(--text-muted)] mb-4"></i>
+                                        <h3 className="text-xl font-bold mb-2">File Ready to Download</h3>
+                                        <p className="text-[var(--text-muted)]">This file format cannot be previewed online.</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Meta & Actions */}
+                            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 bg-[var(--surface)] p-6 rounded-xl border border-[var(--border)]">
+                                <div className="flex-1 min-w-0">
+                                    <h1 className="text-xl md:text-2xl font-bold mb-2 break-all">{data.file_name}</h1>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-sm font-semibold text-[var(--text-muted)] bg-[rgba(255,255,255,0.05)] px-2 py-1 rounded">{data.file_size}</span>
+                                        <span className="text-sm font-semibold text-[var(--primary)] uppercase tracking-wider">Ready</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-3 min-w-[200px]">
+                                    <a href={data.direct_dl_link} download className="btn-brand justify-center w-full">
+                                        <i className="ri-download-2-line text-lg"></i> Download Link
+                                    </a>
+
+                                    {isVideo && (
+                                        <div className="flex items-center gap-2 mt-2">
+                                            {isMobile ? (
+                                                <>
+                                                    <a href={data.vlc_player_link_mobile} className="btn-secondary flex-1 justify-center !text-orange-400 !bg-[rgba(251,146,60,0.1)] hover:!bg-[rgba(251,146,60,0.2)]" title="Play in VLC">
+                                                        <i className="ri-play-circle-fill text-xl"></i> VLC
+                                                    </a>
+                                                    <a href={data.mx_player_link} className="btn-secondary flex-1 justify-center !text-blue-400 !bg-[rgba(96,165,250,0.1)] hover:!bg-[rgba(96,165,250,0.2)]" title="Play in MX Player">
+                                                        <i className="ri-play-circle-fill text-xl"></i> MX
+                                                    </a>
+                                                </>
+                                            ) : (
+                                                <button onClick={() => {
+                                                    navigator.clipboard.writeText(data.direct_dl_link);
+                                                    alert('Stream URL copied! Open VLC on PC > Media > Open Network Stream and paste the URL.');
+                                                }} className="btn-secondary flex-1 justify-center !bg-[rgba(255,255,255,0.08)]">
+                                                    <i className="ri-links-line"></i> Copy VLC URL
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {IS_ADMIN && data.embed_link && (
+                                        <button onClick={() => {
+                                            const code = `<iframe src="${data.embed_link}" width="100%" height="560" frameborder="0" allowfullscreen></iframe>`;
+                                            navigator.clipboard.writeText(code);
+                                            alert("Embed code copied to clipboard!");
+                                        }} className="btn-secondary w-full justify-center mt-2 group">
+                                            <i className="ri-code-s-slash-line group-hover:text-[var(--primary)] transition-colors"></i> Copy Embed
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {/* Sidebar */}
+                        <SidebarQueue currentId={FILE_ID} files={data.user_files} />
+
+                    </main>
                 </div>
             );
         }

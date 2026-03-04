@@ -1123,6 +1123,26 @@ async def get_file_details_api(request: Request, unique_id: str):
         tok = hmac.new(secret, str(Config.OWNER_ID).encode(), hashlib.sha256).hexdigest()
         response_data["dashboard_link"] = f"{base_url}/dashboard/{Config.OWNER_ID}?token={tok}"
     
+    # Fetch other active links from this user to build a Next/Queue UI in show.html
+    user_files = []
+    if user_id_from_db:
+        # Get up to 30 other active links for the playlist sidebar
+        others = await db.get_user_active_links(user_id_from_db, limit=30)
+        for doc in others:
+            if str(doc["_id"]) == str(unique_id):
+                continue
+            fname = doc.get("file_name", "Unknown")
+            mt, _ = mimetypes.guess_type(fname)
+            user_files.append({
+                "id": str(doc["_id"]),
+                "name": fname,
+                "size": doc.get("file_size", ""),
+                "stream_link": f"{base_url}/show/{doc['_id']}?admin=true" if user_id_from_db == Config.OWNER_ID else f"{base_url}/show/{doc['_id']}",
+                "type": ("audio" if mt and mt.startswith("audio") else ("video" if mt and mt.startswith("video") else "file"))
+            })
+    
+    response_data["user_files"] = user_files
+
     return response_data
 
 class ByteStreamer:
@@ -1131,6 +1151,14 @@ class ByteStreamer:
 
     @staticmethod
     async def get_location(f: FileId):
+        from pyrogram.file_id import FileType
+        if f.file_type == FileType.PHOTO:
+            return raw.types.InputPhotoFileLocation(
+                id=f.media_id,
+                access_hash=f.access_hash,
+                file_reference=f.file_reference,
+                thumb_size=f.thumbnail_size or "y"
+            )
         return raw.types.InputDocumentFileLocation(
             id=f.media_id,
             access_hash=f.access_hash,
@@ -1254,7 +1282,7 @@ async def stream_media(r:Request, unique_id: str, fname: str):
     
     tc=class_cache.get(c) or ByteStreamer(c);class_cache[c]=tc
     try:
-        msg=await c.get_messages(Config.STORAGE_CHANNEL,mid);m=msg.document or msg.video or msg.audio
+        msg=await c.get_messages(Config.STORAGE_CHANNEL,mid);m=msg.document or msg.video or msg.audio or msg.photo
         if not m or msg.empty:raise FileNotFoundError
         fid=FileId.decode(m.file_id);fsize=m.file_size;rh=r.headers.get("Range","");fb,ub=0,fsize-1
         if rh:

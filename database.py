@@ -118,6 +118,7 @@ class Database:
             "user_id": user_id,
             "$or": [
                 {"expiry_date": None},
+                {"expiry_date": {"$exists": False}},
                 {"expiry_date": {"$gt": now}}
             ]
         }
@@ -131,6 +132,7 @@ class Database:
             "user_id": user_id,
             "$or": [
                 {"expiry_date": None},
+                {"expiry_date": {"$exists": False}},
                 {"expiry_date": {"$gt": now}}
             ]
         }
