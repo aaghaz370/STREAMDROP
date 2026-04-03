@@ -586,9 +586,11 @@ Simply forward any file to me to get a Stream Link.
 💎 **Subscription Management**
 └ `/setplan user_id plan_name`
    ├ `free` (Reset to normal)
+   ├ `trial` (7 Days)
    ├ `weekly` (7 Days)
    ├ `monthly` (30 Days)
-   └ `bimonthly` (2 Months)
+   ├ `bimonthly` (2 Months)
+   └ `lifetime` (Lifetime / God Mode)
 
 ⚡ **System**
 └ `/broadcast message` - (Coming Soon)
@@ -760,6 +762,10 @@ async def handle_file_upload(message: Message, user_id: int):
 
         file_size = get_readable_file_size(file_size_bytes)
         
+        # Calculate exact Link Expiry Date
+        import datetime
+        link_exp = datetime.datetime.now() + datetime.timedelta(days=status["link_expiry_days"])
+        
         # Save to DB with Expiry
         await db.save_link(
             unique_id, 
@@ -768,7 +774,7 @@ async def handle_file_upload(message: Message, user_id: int):
             file_name, 
             file_size, 
             user_id,
-            expiry_date=status["expiry_date"]
+            expiry_date=link_exp
         )
         
         # Increment Usage
@@ -871,7 +877,7 @@ async def handle_file_upload(message: Message, user_id: int):
             unique_id=unique_id,
             storage_msg_id=sent_message.id,
             plan_type=status['plan_type'],
-            expiry_date=status.get('expiry_date')
+            expiry_date=link_exp
         ))
     except Exception as e:
         error_details = traceback.format_exc()
