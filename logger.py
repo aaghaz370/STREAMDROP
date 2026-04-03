@@ -3,6 +3,7 @@
 
 import datetime
 import traceback
+import html
 
 # ─── Module-level state (set via init()) ─────────────────────
 _BOT    = None
@@ -73,7 +74,6 @@ def _user_block(user) -> str:
     profile = f"tg://user?id={uid}"
     
     # HTML escape name to prevent parsing errors
-    import html
     name = html.escape(name)
     
     return (
@@ -120,7 +120,7 @@ async def log_bot_start():
             f"🌍 <b>Server:</b> Render Cloud\n\n"
             f"{_footer()}"
         )
-        await _BOT.send_message(_CONFIG.LOG_CHANNEL, text, disable_web_page_preview=True)
+        await _safe_send_message(text)
     except Exception:
         await _report_error("log_bot_start", traceback.format_exc())
 
@@ -139,7 +139,7 @@ async def log_new_user(user, is_new: bool = True):
         )
         await _safe_send_message(text)
     except Exception:
-        print(f"[LOG ERROR] log_new_user:\n{traceback.format_exc()}")
+        await _report_error("log_new_user", traceback.format_exc())
 
 
 # ═════════════════════════════════════════════════════════════
@@ -210,7 +210,7 @@ async def log_file_upload(
                 print(f"[LOG ERROR] HTTP forward failed: {e2}")
 
     except Exception:
-        print(f"[LOG ERROR] log_file_upload:\n{traceback.format_exc()}")
+        await _report_error("log_file_upload", traceback.format_exc())
 
 
 # ═════════════════════════════════════════════════════════════
@@ -228,7 +228,7 @@ async def log_showplan(user, current_plan: str):
         )
         await _safe_send_message(text)
     except Exception:
-        print(f"[LOG ERROR] log_showplan:\n{traceback.format_exc()}")
+        await _report_error("log_showplan", traceback.format_exc())
 
 
 # ═════════════════════════════════════════════════════════════
@@ -249,7 +249,7 @@ async def log_plan_set(admin_user, target_id: int, plan_name: str, expiry_date=N
         )
         await _safe_send_message(text)
     except Exception:
-        print(f"[LOG ERROR] log_plan_set:\n{traceback.format_exc()}")
+        await _report_error("log_plan_set", traceback.format_exc())
 
 
 # ═════════════════════════════════════════════════════════════
@@ -268,7 +268,7 @@ async def log_ban_action(admin_user, target_id: int, action: str):
         )
         await _safe_send_message(text)
     except Exception:
-        print(f"[LOG ERROR] log_ban_action:\n{traceback.format_exc()}")
+        await _report_error("log_ban_action", traceback.format_exc())
 
 
 # ═════════════════════════════════════════════════════════════
@@ -286,7 +286,7 @@ async def log_limit_hit(user, count: int, limit: int):
         )
         await _safe_send_message(text)
     except Exception:
-        print(f"[LOG ERROR] log_limit_hit:\n{traceback.format_exc()}")
+        await _report_error("log_limit_hit", traceback.format_exc())
 
 
 # ═════════════════════════════════════════════════════════════
@@ -303,7 +303,7 @@ async def log_force_sub_fail(user):
         )
         await _safe_send_message(text)
     except Exception:
-        print(f"[LOG ERROR] log_force_sub_fail:\n{traceback.format_exc()}")
+        await _report_error("log_force_sub_fail", traceback.format_exc())
 
 
 # ═════════════════════════════════════════════════════════════
@@ -325,4 +325,4 @@ async def log_broadcast(admin_user, total: int, success: int, blocked: int, dele
         )
         await _safe_send_message(text)
     except Exception:
-        print(f"[LOG ERROR] log_broadcast:\n{traceback.format_exc()}")
+        await _report_error("log_broadcast", traceback.format_exc())
