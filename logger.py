@@ -30,7 +30,7 @@ async def _fallback_send_message(chat_id: int, text: str):
     payload = json.dumps({
         "chat_id": chat_id,
         "text": text,
-        "parse_mode": "Markdown",
+        "parse_mode": "HTML",
         "disable_web_page_preview": True
     }).encode("utf-8")
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
@@ -42,7 +42,8 @@ async def _safe_send_message(text: str):
     """Attempts Pyrogram send, automatically falls back to raw HTTP API if peer cache is empty."""
     chat_id = _CONFIG.LOG_CHANNEL
     try:
-        await _BOT.send_message(chat_id, text, disable_web_page_preview=True)
+        from pyrogram import enums
+        await _BOT.send_message(chat_id, text, disable_web_page_preview=True, parse_mode=enums.ParseMode.HTML)
     except Exception as e:
         # If Pyrogram complains it hasn't seen the channel (common on Render restarts)
         err_str = str(e).lower()
@@ -52,7 +53,11 @@ async def _safe_send_message(text: str):
             except Exception as e2:
                 print(f"[LOG ERROR] Final HTTP fallback failed: {e2}")
         else:
-            print(f"[LOG ERROR] Pyrogram send failed: {e}")
+            try:
+                # 100% blind fallback just in case
+                await _fallback_send_message(chat_id, text)
+            except:
+                print(f"[LOG ERROR] Pyrogram and Fallback both failed: e={e}")
 
 def _now() -> str:
     return datetime.datetime.now().strftime("%d %b %Y  •  %I:%M:%S %p")
@@ -62,22 +67,27 @@ def _user_block(user) -> str:
     if not user:
         return "👤 Unknown User"
     name  = f"{user.first_name or ''} {user.last_name or ''}".strip() or "No Name"
-    uname = f"@{user.username}" if user.username else "_(no username)_"
+    uname = f"@{user.username}" if user.username else "<i>(no username)</i>"
     uid   = user.id
     tg_plan = "💎 Telegram Premium" if getattr(user, "is_premium", False) else "🆓 Free Account"
     profile = f"tg://user?id={uid}"
+    
+    # HTML escape name to prevent parsing errors
+    import html
+    name = html.escape(name)
+    
     return (
-        f"👤 **Name:** [{name}]({profile})\n"
-        f"🆔 **User ID:** `{uid}`\n"
-        f"🔗 **Username:** {uname}\n"
-        f"✨ **Telegram:** {tg_plan}"
+        f"👤 <b>Name:</b> <a href=\"{profile}\">{name}</a>\n"
+        f"🆔 <b>User ID:</b> <code>{uid}</code>\n"
+        f"🔗 <b>Username:</b> {uname}\n"
+        f"✨ <b>Telegram:</b> {tg_plan}"
     )
 
 def _header(icon: str, title: str) -> str:
-    return f"**{icon} {title}**\n{SEP}"
+    return f"<b>{icon} {title}</b>\n{SEP}"
 
 def _footer() -> str:
-    return f"{SEP}\n🕐 `{_now()}`\n📌 _StreamDrop Activity Log_"
+    return f"{SEP}\n🕐 <code>{_now()}</code>\n📌 <i>StreamDrop Activity Log</i>"
 
 def _ready() -> bool:
     if _BOT is None or _CONFIG is None:
@@ -106,8 +116,8 @@ async def log_bot_start():
     try:
         text = (
             f"{_header('⚡', 'BOT STARTED / RESTARTED')}\n\n"
-            f"🤖 **Bot:** @{_CONFIG.BOT_USERNAME or 'StreamDrop'}\n"
-            f"🌍 **Server:** Render Cloud\n\n"
+            f"🤖 <b>Bot:</b> @{_CONFIG.BOT_USERNAME or 'STREAM_DROP_BOT'}\n"
+            f"🌍 <b>Server:</b> Render Cloud\n\n"
             f"{_footer()}"
         )
         await _BOT.send_message(_CONFIG.LOG_CHANNEL, text, disable_web_page_preview=True)
@@ -161,15 +171,15 @@ async def log_file_upload(
         text = (
             f"{_header('📤', 'NEW LINK CREATED')}\n\n"
             f"{_user_block(user)}\n"
-            f"📊 **Plan:** {plan_label}\n\n"
+            f"📊 <b>Plan:</b> {plan_label}\n\n"
             f"{'─'*32}\n"
-            f"📁 **File:** `{file_name}`\n"
-            f"💾 **Size:** `{file_size}`\n"
-            f"🗂 **Type:** {ficon}\n"
-            f"🔑 **ID:** `{unique_id}`\n"
-            f"⏳ **Expires:** `{expiry_str}`\n\n"
-            f"🌐 **Stream:** {page_link}\n"
-            f"⬇️ **Download:** {dl_link}\n\n"
+            f"📁 <b>File:</b> <code>{html.escape(file_name)}</code>\n"
+            f"💾 <b>Size:</b> <code>{file_size}</code>\n"
+            f"🗂 <b>Type:</b> {ficon}\n"
+            f"🔑 <b>ID:</b> <code>{unique_id}</code>\n"
+            f"⏳ <b>Expires:</b> <code>{expiry_str}</code>\n\n"
+            f"🌐 <b>Stream:</b> {page_link}\n"
+            f"⬇️ <b>Download:</b> {dl_link}\n\n"
             f"{_footer()}"
         )
         await _safe_send_message(text)
@@ -212,8 +222,8 @@ async def log_showplan(user, current_plan: str):
         text = (
             f"{_header('💰', 'USER VIEWED PLANS')}\n\n"
             f"{_user_block(user)}\n\n"
-            f"📊 **Current Plan:** `{current_plan.upper()}`\n\n"
-            f"💡 _Potential upgrade — reach out if needed!_\n\n"
+            f"📊 <b>Current Plan:</b> <code>{current_plan.upper()}</code>\n\n"
+            f"💡 <i>Potential upgrade — reach out if needed!</i>\n\n"
             f"{_footer()}"
         )
         await _safe_send_message(text)
@@ -230,11 +240,11 @@ async def log_plan_set(admin_user, target_id: int, plan_name: str, expiry_date=N
         expiry_str = expiry_date.strftime("%d %b %Y") if expiry_date else "Lifetime / Never"
         text = (
             f"{_header('🎖', 'PLAN SET BY ADMIN')}\n\n"
-            f"👑 **Admin:** {admin_user.first_name} (`{admin_user.id}`)\n\n"
+            f"👑 <b>Admin:</b> {admin_user.first_name} (<code>{admin_user.id}</code>)\n\n"
             f"{'─'*32}\n"
-            f"🎯 **Target User ID:** `{target_id}`\n"
-            f"💎 **Plan:** `{plan_name.upper()}`\n"
-            f"📅 **Valid Until:** `{expiry_str}`\n\n"
+            f"🎯 <b>Target User ID:</b> <code>{target_id}</code>\n"
+            f"💎 <b>Plan:</b> <code>{plan_name.upper()}</code>\n"
+            f"📅 <b>Valid Until:</b> <code>{expiry_str}</code>\n\n"
             f"{_footer()}"
         )
         await _safe_send_message(text)
@@ -252,8 +262,8 @@ async def log_ban_action(admin_user, target_id: int, action: str):
         label = "USER BANNED" if action == "ban" else "USER UNBANNED"
         text = (
             f"{_header(icon, label)}\n\n"
-            f"👑 **Admin:** {admin_user.first_name} (`{admin_user.id}`)\n"
-            f"🎯 **Target User ID:** `{target_id}`\n\n"
+            f"👑 <b>Admin:</b> {admin_user.first_name} (<code>{admin_user.id}</code>)\n"
+            f"🎯 <b>Target User ID:</b> <code>{target_id}</code>\n\n"
             f"{_footer()}"
         )
         await _safe_send_message(text)
@@ -270,8 +280,8 @@ async def log_limit_hit(user, count: int, limit: int):
         text = (
             f"{_header('⛔', 'DAILY LIMIT REACHED')}\n\n"
             f"{_user_block(user)}\n\n"
-            f"📊 **Uploads Today:** `{count} / {limit}`\n"
-            f"💡 _Potential premium convert!_\n\n"
+            f"📊 <b>Uploads Today:</b> <code>{count} / {limit}</code>\n"
+            f"💡 <i>Potential premium convert!</i>\n\n"
             f"{_footer()}"
         )
         await _safe_send_message(text)
@@ -288,7 +298,7 @@ async def log_force_sub_fail(user):
         text = (
             f"{_header('🔒', 'FORCE-SUB BLOCKED')}\n\n"
             f"{_user_block(user)}\n\n"
-            f"📌 _User has not joined the required channel._\n\n"
+            f"📌 <i>User has not joined the required channel.</i>\n\n"
             f"{_footer()}"
         )
         await _safe_send_message(text)
@@ -304,13 +314,13 @@ async def log_broadcast(admin_user, total: int, success: int, blocked: int, dele
     try:
         text = (
             f"{_header('📢', 'BROADCAST COMPLETED')}\n\n"
-            f"👑 **By:** {admin_user.first_name} (`{admin_user.id}`)\n\n"
+            f"👑 <b>By:</b> {admin_user.first_name} (<code>{admin_user.id}</code>)\n\n"
             f"{'─'*32}\n"
-            f"👥 **Total:** `{total}`\n"
-            f"✅ **Delivered:** `{success}`\n"
-            f"🚫 **Blocked:** `{blocked}`\n"
-            f"🗑 **Deleted Accounts:** `{deleted}`\n"
-            f"⚠️ **Failed:** `{failed}`\n\n"
+            f"👥 <b>Total:</b> <code>{total}</code>\n"
+            f"✅ <b>Delivered:</b> <code>{success}</code>\n"
+            f"🚫 <b>Blocked:</b> <code>{blocked}</code>\n"
+            f"🗑 <b>Deleted Accounts:</b> <code>{deleted}</code>\n"
+            f"⚠️ <b>Failed:</b> <code>{failed}</code>\n\n"
             f"{_footer()}"
         )
         await _safe_send_message(text)
