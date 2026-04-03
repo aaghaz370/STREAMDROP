@@ -22,7 +22,6 @@ function classify(name = '') {
 
 function browserCanPlay(name = '') {
   if (NO_BROWSER.test(name)) return false;
-  if (name.toLowerCase().endsWith('.mkv')) return false; // MKV = no guarantee
   return true;
 }
 
