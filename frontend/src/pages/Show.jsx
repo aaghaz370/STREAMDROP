@@ -14,6 +14,7 @@ export default function Show() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState('00:00');
   const [duration, setDuration] = useState('00:00');
@@ -44,7 +45,14 @@ export default function Show() {
   // Video Player Logic
   const togglePlay = () => {
     if (videoRef.current.paused) {
-      videoRef.current.play();
+      setIsBuffering(true);
+      const playPromise = videoRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => setIsBuffering(false)).catch(e => {
+            console.log("Play failed", e);
+            setIsBuffering(false);
+        });
+      }
       setIsPlaying(true);
     } else {
       videoRef.current.pause();
@@ -144,28 +152,37 @@ export default function Show() {
         
         {data.is_media ? (
           <div 
-            className="w-full h-full relative"
+            className="w-full h-full relative flex items-center justify-center bg-black/95 group/video"
             onMouseMove={handleMouseMove}
             onMouseLeave={() => isPlaying && setShowControls(false)}
             onDoubleClick={handleDoubleTap}
-            onClick={togglePlay}
           >
             {/* BIG Center Play Button! Ensures user knows video is there */}
-            {!isPlaying && (
-               <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-                 <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-full shadow-[0_0_50px_rgba(255,255,255,0.1)] border border-white/20 flex items-center justify-center animate-pulse">
+            {!isPlaying && !isBuffering && (
+               <div className="absolute inset-0 flex items-center justify-center z-20" onClick={togglePlay}>
+                 <div className="w-24 h-24 bg-white/10 hover:bg-white/20 transition backdrop-blur-md rounded-full shadow-[0_0_50px_rgba(99,102,241,0.3)] border border-white/20 flex items-center justify-center animate-pulse cursor-pointer">
                    <Play fill="white" size={48} className="text-white ml-2 drop-shadow-lg" />
                  </div>
                </div>
             )}
             
+            {/* Buffering Spinner */}
+            {isBuffering && (
+               <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+                 <div className="w-16 h-16 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin drop-shadow-[0_0_20px_rgba(99,102,241,0.5)]"></div>
+               </div>
+            )}
+
             <video
               ref={videoRef}
               src={data.direct_dl_link}
-              className="w-full h-full object-contain bg-black/90"
+              className="w-full h-full object-contain cursor-pointer relative z-10 mix-blend-screen"
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleLoadedMetadata}
               onEnded={() => setIsPlaying(false)}
+              onWaiting={() => setIsBuffering(true)}
+              onPlaying={() => setIsBuffering(false)}
+              onClick={togglePlay}
               playsInline
               autoPlay
               muted={isMuted}
@@ -248,10 +265,22 @@ export default function Show() {
       </div>
       
       {/* Sidebar Playlist / Players */}
-      <div className="w-full md:w-80 h-full overflow-y-auto bg-[color:var(--surface-color)] border-l border-[color:var(--border-color)] flex flex-col z-10">
+      <div className="w-full md:w-80 h-full overflow-y-auto bg-[color:var(--surface-color)] border-l border-[color:var(--border-color)] flex flex-col z-10 hidden-scrollbar">
+         
+         {/* MKV Warning Box */}
+         {data.is_media && data.file_name.toLowerCase().endsWith('.mkv') && (
+           <div className="mx-6 mt-6 p-4 rounded-xl bg-orange-500/10 border border-orange-500/30 flex gap-3 text-orange-200">
+             <AlertTriangle size={24} className="text-orange-500 flex-shrink-0" />
+             <div className="text-sm">
+               <p className="font-bold text-orange-500">MKV Format Detected</p>
+               <p className="opacity-80 mt-1">Browsers struggle playing MKV streams. If video is black or lagging, tap the <span className="font-semibold text-white">VLC Mobile</span> button below.</p>
+             </div>
+           </div>
+         )}
+         
          <div className="p-6 pb-2 border-b border-[color:var(--border-color)]">
            <h3 className="text-lg font-bold">External Players</h3>
-           <p className="text-sm text-[color:var(--text-muted)] mb-4">Watch externally with high speed</p>
+           <p className="text-sm text-[color:var(--text-muted)] mb-4">Lag-free native players.</p>
            
            <div className="space-y-3">
              <a href={data.vlc_player_link_mobile} className="flex items-center justify-between p-3 rounded-xl bg-orange-500/10 text-orange-600 border border-orange-500/20 hover:bg-orange-500/20 transition">
