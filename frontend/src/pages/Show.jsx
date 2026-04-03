@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, Maximize, Volume2, VolumeX, SkipForward, SkipBack, Share2, Download, AlertTriangle, MonitorPlay, Film } from 'lucide-react';
 
 export default function Show() {
