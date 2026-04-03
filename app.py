@@ -1055,22 +1055,8 @@ async def health_check():
     """
     return {"status": "ok", "message": "Server is healthy and running!"}
 
-@app.get("/show/{unique_id}", response_class=HTMLResponse)
-async def show_page(request: Request, unique_id: str):
-    return templates.TemplateResponse(
-        "show.html",
-        {"request": request}
-    )
-
-@app.get("/embed/{unique_id}", response_class=HTMLResponse)
-async def embed_page(request: Request, unique_id: str):
-    return templates.TemplateResponse(
-        "embed.html",
-        {"request": request}
-    )
-
-@app.get("/dashboard/{user_id}", response_class=HTMLResponse)
-async def dashboard_page(request: Request, user_id: int, token: str):
+@app.get("/api/dashboard/{user_id}", response_class=JSONResponse)
+async def dashboard_api(request: Request, user_id: int, token: str):
     # 1. Validate Token (HMAC)
     try:
         import hmac, hashlib
@@ -1108,21 +1094,10 @@ async def dashboard_page(request: Request, user_id: int, token: str):
                  "is_expired": is_expired
              })
              
-        import json
-        app_data = {"links": formatted_links, "total": len(formatted_links)}
-        return templates.TemplateResponse(
-            "dashboard.html",
-            {
-                "request": request,
-                "user_id": user_id,
-                "links": formatted_links,
-                "app_data_json": json.dumps(app_data, default=str),
-                "total_count": len(formatted_links)
-            }
-        )
+        return {"links": formatted_links, "total": len(formatted_links)}
              
     except Exception as e:
-         print(f"Dashboard Error: {e}")
+         print(f"Dashboard API Error: {e}")
          raise HTTPException(status_code=403, detail="Access Denied")
 @app.get("/api/file/{unique_id}", response_class=JSONResponse)
 async def get_file_details_api(request: Request, unique_id: str):
@@ -1384,6 +1359,37 @@ async def stream_media(r:Request, unique_id: str, fname: str):
         return StreamingResponse(body,status_code=sc,headers=hdrs)
     except FileNotFoundError:raise HTTPException(404)
     except Exception:print(traceback.format_exc());raise HTTPException(500)
+
+
+# =====================================================================================
+# --- FRONTEND REACT SPA ROUTING (VITE) ---
+# =====================================================================================
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
+
+# Serve Vite built assets
+if os.path.exists("frontend/dist/assets"):
+    app.mount("/assets", StaticFiles(directory="frontend/dist/assets"), name="assets")
+
+@app.get("/{full_path:path}")
+async def catch_all(request: Request, full_path: str):
+    """
+    Catch-all route to serve the React SPA for any unhandled paths (e.g. /show/xyz, /dashboard/123)
+    Leaves /api/ and /dl/ alone.
+    """
+    if full_path.startswith("api/") or full_path.startswith("dl/"):
+        raise HTTPException(status_code=404)
+        
+    file_path = os.path.join("frontend", "dist", full_path)
+    if os.path.isfile(file_path):
+        return FileResponse(file_path)
+        
+    index_path = os.path.join("frontend", "dist", "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    
+    return {"error": "Frontend build not found. Run 'npm run build' inside frontend/"}
 
 
 
