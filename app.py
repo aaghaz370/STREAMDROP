@@ -1196,6 +1196,9 @@ async def get_file_details_api(request: Request, unique_id: str):
 
     return response_data
 
+# In-memory cache for Telegram file metadata — avoids expensive API calls on every seek
+_file_meta_cache = {}
+
 class ByteStreamer:
     def __init__(self, c: Client):
         self.client = c
@@ -1323,46 +1326,63 @@ async def stream_media(r:Request, unique_id: str, fname: str):
     
     if not c:
         if bot:
-            print("DEBUG: Using global 'bot' fallback for streaming.")
             c = bot
             client_id = 0
             if 0 not in work_loads: work_loads[0] = 0
         else:
-            print("DEBUG: Critical - Both multi_clients and global bot missing.")
             raise HTTPException(503, detail="Bot not initialized")
     
     tc=class_cache.get(c) or ByteStreamer(c);class_cache[c]=tc
     try:
-        msg=await c.get_messages(Config.STORAGE_CHANNEL,mid);m=msg.document or msg.video or msg.audio or msg.photo
-        if not m or msg.empty:raise FileNotFoundError
-        # Photos may not have .file_size directly; use getattr with fallback
-        fid=FileId.decode(m.file_id)
-        fsize=getattr(m,'file_size',None)
-        if fsize is None:
-            # Try largest PhotoSize
-            sizes=getattr(m,'sizes',None)
-            if sizes: fsize=getattr(sizes[-1],'file_size',None)
-        if not fsize: fsize=0
-        rh=r.headers.get("Range","");fb,ub=0,max(fsize-1,0)
-        if rh:
-            rps=rh.replace("bytes=","").split("-");fb=int(rps[0])
-            if len(rps)>1 and rps[1]:ub=int(rps[1])
-        if(ub>=fsize)or(fb<0):raise HTTPException(416)
-        rl=ub-fb+1;cs=1024*1024
-        
-        # New Call Signature: pass start byte (fb) and end byte (ub) directly
-        body=tc.yield_file(fid,client_id,fb,ub,cs)
-        
-        sc=206 if rh else 200
-        # Photos don't have .mime_type or .file_name — derive safely
         import mimetypes as _mt
-        _mime=getattr(m,'mime_type',None) or _mt.guess_type(fname)[0] or 'application/octet-stream'
-        _fname=getattr(m,'file_name',None) or fname
-        hdrs={"Content-Type":_mime,"Accept-Ranges":"bytes","Content-Disposition":f'inline; filename="{_fname}"',"Content-Length":str(rl)}
-        if rh:hdrs["Content-Range"]=f"bytes {fb}-{ub}/{fsize}"
-        return StreamingResponse(body,status_code=sc,headers=hdrs)
-    except FileNotFoundError:raise HTTPException(404)
-    except Exception:print(traceback.format_exc());raise HTTPException(500)
+        
+        # --- Use cached file metadata to avoid Telegram API call on every seek ---
+        if unique_id in _file_meta_cache:
+            fid, fsize, _mime, _fname = _file_meta_cache[unique_id]
+        else:
+            msg = await c.get_messages(Config.STORAGE_CHANNEL, mid)
+            m = msg.document or msg.video or msg.audio or msg.photo
+            if not m or msg.empty: raise FileNotFoundError
+            fid = FileId.decode(m.file_id)
+            fsize = getattr(m, 'file_size', None)
+            if fsize is None:
+                sizes = getattr(m, 'sizes', None)
+                if sizes: fsize = getattr(sizes[-1], 'file_size', None)
+            if not fsize: fsize = 0
+            _mime = getattr(m,'mime_type',None) or _mt.guess_type(fname)[0] or 'application/octet-stream'
+            _fname = getattr(m,'file_name',None) or fname
+            # Cache for 60 minutes (file_id can change on dc migration but rare)
+            _file_meta_cache[unique_id] = (fid, fsize, _mime, _fname)
+        
+        # --- Parse Range header ---
+        rh = r.headers.get("Range", "")
+        fb, ub = 0, max(fsize - 1, 0)
+        if rh:
+            rps = rh.replace("bytes=", "").split("-")
+            fb = int(rps[0]) if rps[0] else 0
+            if len(rps) > 1 and rps[1]: ub = int(rps[1])
+        
+        # Clamp ub to valid range (mobile safari sends ub >= fsize)
+        ub = min(ub, fsize - 1)
+        if fb < 0 or fb > ub:
+            raise HTTPException(416)
+        
+        rl = ub - fb + 1
+        cs = 2 * 1024 * 1024  # 2MB chunks for faster streaming
+        
+        body = tc.yield_file(fid, client_id, fb, ub, cs)
+        
+        sc = 206 if rh else 200
+        hdrs = {
+            "Content-Type": _mime,
+            "Accept-Ranges": "bytes",
+            "Content-Disposition": f'inline; filename="{_fname}"',
+            "Content-Length": str(rl)
+        }
+        if rh: hdrs["Content-Range"] = f"bytes {fb}-{ub}/{fsize}"
+        return StreamingResponse(body, status_code=sc, headers=hdrs)
+    except FileNotFoundError: raise HTTPException(404)
+    except Exception: print(traceback.format_exc()); raise HTTPException(500)
 
 
 # =====================================================================================

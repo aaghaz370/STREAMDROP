@@ -176,7 +176,7 @@ export default function Show() {
             <video
               ref={videoRef}
               src={data.direct_dl_link}
-              className="w-full h-full object-contain cursor-pointer relative z-10 mix-blend-screen"
+              className="w-full h-full object-contain cursor-pointer relative z-10 bg-black"
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleLoadedMetadata}
               onEnded={() => setIsPlaying(false)}
