@@ -2,62 +2,85 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Download, AlertTriangle, MonitorPlay, Film,
-  Smartphone, ExternalLink, Tv2, Music, FileText
+  Download, AlertTriangle, MonitorPlay, Film, Smartphone,
+  ExternalLink, Tv2, Music, Clock, Search, ChevronRight
 } from 'lucide-react';
 
-// Load Plyr dynamically (it injects its own CSS from CDN in index.html)
-let plyrLoaded = false;
+// ── File type detection ───────────────────────────────────────────────────────
+const AUDIO_EXT = /\.(mp3|aac|wav|flac|m4a|ogg|opus)$/i;
+const IMAGE_EXT = /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i;
+const PDF_EXT   = /\.pdf$/i;
+// Formats that NO browser can decode — skip player, go straight to external
+const NO_BROWSER = /\b(hevc|h\.265|x265|10bit|10-bit|hdr|av1|xvid|divx)\b/i;
 
-const AUDIO_EXTS = /\.(mp3|aac|wav|flac|m4a|ogg|opus)$/i;
-const IMAGE_EXTS = /\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/i;
-const PDF_EXTS = /\.pdf$/i;
-
-function getFileType(name) {
-  if (!name) return 'other';
-  if (AUDIO_EXTS.test(name)) return 'audio';
-  if (IMAGE_EXTS.test(name)) return 'image';
-  if (PDF_EXTS.test(name)) return 'pdf';
-  return 'video'; // treat all else (including mkv) as video and let browser/plyr try
+function classify(name = '') {
+  if (AUDIO_EXT.test(name)) return 'audio';
+  if (IMAGE_EXT.test(name)) return 'image';
+  if (PDF_EXT.test(name))   return 'pdf';
+  return 'video';
 }
 
-// ── Plyr-powered Video Player ─────────────────────────────────────────────────
-function VideoPlayer({ src }) {
-  const videoRef = useRef(null);
-  const playerRef = useRef(null);
+function browserCanPlay(name = '') {
+  if (NO_BROWSER.test(name)) return false;
+  if (name.toLowerCase().endsWith('.mkv')) return false; // MKV = no guarantee
+  return true;
+}
 
+// ── Load Plyr from CDN ────────────────────────────────────────────────────────
+function usePlyr() {
+  const [ready, setReady] = useState(!!window.Plyr);
   useEffect(() => {
-    if (!videoRef.current || !window.Plyr) return;
-    playerRef.current = new window.Plyr(videoRef.current, {
-      controls: [
-        'play-large', 'play', 'rewind', 'fast-forward',
-        'progress', 'current-time', 'duration',
-        'mute', 'volume', 'pip', 'fullscreen'
-      ],
-      keyboard: { focused: true, global: true },
+    if (window.Plyr) return;
+    if (!document.querySelector('link[data-plyr-css]')) {
+      const l = Object.assign(document.createElement('link'), {
+        rel: 'stylesheet', href: 'https://cdn.plyr.io/3.7.8/plyr.css'
+      });
+      l.setAttribute('data-plyr-css', '1');
+      document.head.appendChild(l);
+    }
+    if (!document.querySelector('script[data-plyr-js]')) {
+      const s = Object.assign(document.createElement('script'), {
+        src: 'https://cdn.plyr.io/3.7.8/plyr.polyfilled.js',
+        onload: () => setReady(true),
+        onerror: () => setReady(false),
+      });
+      s.setAttribute('data-plyr-js', '1');
+      document.head.appendChild(s);
+    }
+  }, []);
+  return ready;
+}
+
+// ── Video Player (Plyr) ───────────────────────────────────────────────────────
+function VideoPlayer({ src }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!ref.current || !window.Plyr) return;
+    const p = new window.Plyr(ref.current, {
+      controls: ['play-large', 'play', 'rewind', 'fast-forward', 'progress',
+                 'current-time', 'duration', 'mute', 'volume', 'pip', 'fullscreen'],
+      keyboard: { global: true },
       autoplay: true,
-      resetOnEnd: false,
-      invertTime: false,
+      tooltips: { controls: true, seek: true },
     });
-    return () => { try { playerRef.current?.destroy(); } catch {} };
+    return () => { try { p.destroy(); } catch {} };
   }, [src]);
 
   return (
-    <div className="w-full h-full bg-black flex items-center justify-center">
-      <video ref={videoRef} playsInline className="w-full h-full" preload="metadata">
+    <div className="w-full h-full bg-black">
+      <video ref={ref} playsInline className="w-full h-full">
         <source src={src} />
       </video>
     </div>
   );
 }
 
-// ── Plyr-powered Audio Player ─────────────────────────────────────────────────
-function AudioPlayer({ src, fileName }) {
-  const audioRef = useRef(null);
-
+// ── Audio Player (Plyr) ───────────────────────────────────────────────────────
+function AudioPlayer({ src, title }) {
+  const ref = useRef(null);
   useEffect(() => {
-    if (!audioRef.current || !window.Plyr) return;
-    const p = new window.Plyr(audioRef.current, {
+    if (!ref.current || !window.Plyr) return;
+    const p = new window.Plyr(ref.current, {
       controls: ['play', 'progress', 'current-time', 'duration', 'mute', 'volume'],
       autoplay: true,
     });
@@ -65,14 +88,16 @@ function AudioPlayer({ src, fileName }) {
   }, [src]);
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-[#121212]">
-      <div className="w-36 h-36 md:w-48 md:h-48 rounded-2xl bg-gradient-to-br from-indigo-900 to-purple-900 flex items-center justify-center mb-6 shadow-2xl">
-        <Music size={56} className="text-indigo-300" />
+    <div className="w-full flex flex-col items-center justify-center p-10 gap-6 bg-[color:var(--bg-color)]">
+      <div className="w-36 h-36 rounded-2xl bg-gradient-to-br from-indigo-600/30 to-purple-600/20 border border-[color:var(--border-color)] flex items-center justify-center shadow-xl">
+        <Music size={52} className="text-indigo-400" />
       </div>
-      <h2 className="text-white font-bold text-xl text-center mb-1 max-w-sm truncate px-4">{fileName}</h2>
-      <p className="text-white/40 text-sm mb-8">StreamDrop Audio</p>
-      <div className="w-full max-w-md px-4">
-        <audio ref={audioRef} playsInline>
+      <div className="text-center">
+        <p className="font-bold text-[color:var(--text-color)] text-lg line-clamp-2 max-w-sm">{title}</p>
+        <p className="text-[color:var(--text-muted)] text-sm mt-1">StreamDrop Audio</p>
+      </div>
+      <div className="w-full max-w-sm">
+        <audio ref={ref} playsInline>
           <source src={src} />
         </audio>
       </div>
@@ -80,129 +105,102 @@ function AudioPlayer({ src, fileName }) {
   );
 }
 
-// ── External players block (for when browser can't play) ──────────────────────
-function ExternalPlayerLinks({ data }) {
-  const [copied, setCopied] = useState(false);
+// ── External Player Buttons ───────────────────────────────────────────────────
+function PlayerButtons({ data, vertical = false }) {
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-  const copy = () => {
-    navigator.clipboard.writeText(data.direct_dl_link);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const base = `flex items-center gap-3 px-4 py-3 rounded-xl font-semibold text-sm border transition-all active:scale-95`;
 
   return (
-    <div className="w-full max-w-md mx-auto py-6 px-4 space-y-4">
-      {/* File card */}
-      <div className="flex items-center gap-4 p-4 rounded-2xl bg-white/5 border border-white/10">
-        <div className="w-14 h-14 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center flex-shrink-0">
-          <Film size={28} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-white font-semibold text-sm truncate">{data.file_name}</p>
-          <p className="text-white/40 text-xs mt-0.5">{data.file_size}</p>
-        </div>
-      </div>
-
-      {/* Explanation */}
-      <div className="flex gap-3 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-        <AlertTriangle size={20} className="text-amber-400 flex-shrink-0 mt-0.5" />
-        <p className="text-amber-200/80 text-sm">
-          This format can't be played in a browser. Use <strong className="text-amber-200">VLC</strong> or <strong className="text-amber-200">MX Player</strong> for the best experience.
-        </p>
-      </div>
-
-      {/* Player buttons — mobile or desktop */}
+    <div className={`flex ${vertical ? 'flex-col' : 'flex-wrap'} gap-2`}>
+      <a href={data.direct_dl_link}
+        className={`${base} bg-indigo-500 hover:bg-indigo-600 text-white border-transparent shadow-lg shadow-indigo-500/20`}
+      >
+        <Download size={17} /> Download
+      </a>
       {isMobile ? (
-        <div className="space-y-3">
+        <>
           <a href={data.vlc_player_link_mobile}
-            className="flex items-center justify-between w-full p-4 rounded-2xl bg-orange-500/10 border border-orange-500/20 text-orange-300 hover:bg-orange-500/20 active:scale-95 transition-all"
+            className={`${base} bg-[color:var(--bg-color)] border-[color:var(--border-color)] text-[color:var(--text-color)] hover:border-indigo-400`}
           >
-            <span className="flex items-center gap-3 font-bold"><Smartphone size={22} /> VLC Mobile</span>
-            <span className="text-xs opacity-60">Recommended</span>
+            <Smartphone size={17} className="text-orange-400" /> VLC Mobile
           </a>
           <a href={data.mx_player_link}
-            className="flex items-center justify-between w-full p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-300 hover:bg-blue-500/20 active:scale-95 transition-all"
+            className={`${base} bg-[color:var(--bg-color)] border-[color:var(--border-color)] text-[color:var(--text-color)] hover:border-indigo-400`}
           >
-            <span className="flex items-center gap-3 font-bold"><Tv2 size={22} /> MX Player</span>
-            <span className="text-xs opacity-60">Hardware decode</span>
+            <Tv2 size={17} className="text-blue-400" /> MX Player
           </a>
-        </div>
+        </>
       ) : (
-        <div className="space-y-3">
+        <>
           <a href={data.vlc_player_link_pc}
-            className="flex items-center justify-between w-full p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-300 hover:bg-purple-500/20 active:scale-95 transition-all"
+            className={`${base} bg-[color:var(--bg-color)] border-[color:var(--border-color)] text-[color:var(--text-color)] hover:border-indigo-400`}
           >
-            <span className="flex items-center gap-3 font-bold"><MonitorPlay size={22} /> Open in VLC Desktop</span>
-            <ExternalLink size={18} />
+            <MonitorPlay size={17} className="text-purple-400" /> VLC Desktop
           </a>
-          <button onClick={copy}
-            className="flex items-center justify-between w-full p-4 rounded-2xl bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 active:scale-95 transition-all"
+          <a href={data.vlc_player_link_mobile}
+            className={`${base} bg-[color:var(--bg-color)] border-[color:var(--border-color)] text-[color:var(--text-color)] hover:border-indigo-400`}
           >
-            <span className="font-medium text-sm">{copied ? '✓ Link Copied!' : '🔗 Copy stream URL for VLC'}</span>
-          </button>
-        </div>
+            <Smartphone size={17} className="text-orange-400" /> VLC Mobile
+          </a>
+        </>
       )}
-
-      {/* Download */}
-      <a href={data.direct_dl_link}
-        className="flex items-center justify-center gap-2 w-full p-4 rounded-2xl bg-indigo-500 hover:bg-indigo-600 active:scale-95 text-white font-bold transition-all shadow-lg shadow-indigo-500/20"
-      >
-        <Download size={20} /> Download File
-      </a>
     </div>
   );
 }
 
-// ── Sidebar queue ─────────────────────────────────────────────────────────────
-function SidebarQueue({ currentId, files }) {
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
+// ── Queue Sidebar ─────────────────────────────────────────────────────────────
+function Queue({ currentId, files }) {
+  const [q, setQ] = useState('');
+  const [tab, setTab] = useState('all');
 
   const shown = useMemo(() => {
     if (!files?.length) return [];
-    return files.filter(f => {
-      if (filter !== 'all' && f.type !== filter) return false;
-      if (search && !f.name.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    });
-  }, [files, filter, search]);
+    return files.filter(f =>
+      (tab === 'all' || f.type === tab) &&
+      (!q || f.name.toLowerCase().includes(q.toLowerCase()))
+    );
+  }, [files, tab, q]);
 
   if (!files?.length) return null;
 
-  const iconFor = (type) => type === 'video' ? '▶' : type === 'audio' ? '♪' : '📄';
-
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b border-[color:var(--border-color)] space-y-3">
-        <h3 className="font-bold text-sm uppercase tracking-wider text-[color:var(--text-muted)]">Up Next</h3>
-        <input
-          value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search..."
-          className="w-full px-3 py-2 text-sm rounded-lg bg-[color:var(--bg-color)] border border-[color:var(--border-color)] focus:border-indigo-500 outline-none"
-        />
-        <div className="flex gap-2">
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-4 border-b border-[color:var(--border-color)] space-y-3 flex-shrink-0">
+        <p className="text-xs font-bold uppercase tracking-widest text-[color:var(--text-muted)]">Queue</p>
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)]" />
+          <input
+            value={q} onChange={e => setQ(e.target.value)}
+            placeholder="Search files…"
+            className="w-full pl-8 pr-3 py-2 text-sm rounded-lg bg-[color:var(--bg-color)] border border-[color:var(--border-color)] text-[color:var(--text-color)] placeholder:text-[color:var(--text-muted)] focus:border-indigo-500 outline-none transition"
+          />
+        </div>
+        <div className="flex gap-1.5">
           {['all', 'video', 'audio'].map(t => (
-            <button key={t} onClick={() => setFilter(t)}
-              className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-all ${filter === t ? 'bg-indigo-500 text-white' : 'bg-[color:var(--bg-color)] text-[color:var(--text-muted)] hover:text-[color:var(--text-color)]'}`}
+            <button key={t} onClick={() => setTab(t)}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize transition-all ${tab === t ? 'bg-indigo-500 text-white shadow-sm' : 'bg-[color:var(--bg-color)] text-[color:var(--text-muted)] hover:text-[color:var(--text-color)] border border-[color:var(--border-color)]'}`}
             >{t}</button>
           ))}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto p-3 space-y-1">
+
+      {/* List */}
+      <div className="flex-1 overflow-y-auto py-2">
         {shown.length === 0
-          ? <p className="text-[color:var(--text-muted)] text-sm text-center py-8">No files match.</p>
+          ? <p className="text-[color:var(--text-muted)] text-sm text-center py-8">No files found.</p>
           : shown.map(f => (
             <a key={f.id} href={f.stream_link}
-              className={`flex items-center gap-3 p-2.5 rounded-xl transition-all hover:bg-[color:var(--bg-color)] ${f.id === currentId ? 'text-indigo-400 bg-indigo-500/5' : 'text-[color:var(--text-muted)]'}`}
+              className={`group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[color:var(--bg-color)] ${f.id === currentId ? 'border-l-2 border-indigo-500 pl-3.5 text-indigo-400' : 'text-[color:var(--text-color)]'}`}
             >
-              <div className="w-9 h-9 rounded-lg bg-[color:var(--bg-color)] flex items-center justify-center text-sm flex-shrink-0">
-                {iconFor(f.type)}
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${f.id === currentId ? 'bg-indigo-500/10 text-indigo-400' : 'bg-[color:var(--bg-color)] text-[color:var(--text-muted)]'}`}>
+                {f.type === 'audio' ? <Music size={16} /> : <Film size={16} />}
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate text-[color:var(--text-color)]">{f.name}</p>
-                <p className="text-xs opacity-60 mt-0.5">{f.size}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate leading-tight">{f.name}</p>
+                <p className="text-xs text-[color:var(--text-muted)] mt-0.5">{f.size}</p>
               </div>
+              <ChevronRight size={14} className="text-[color:var(--text-muted)] group-hover:text-indigo-400 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100" />
             </a>
           ))
         }
@@ -211,183 +209,168 @@ function SidebarQueue({ currentId, files }) {
   );
 }
 
-// ── Main Show Page ────────────────────────────────────────────────────────────
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function Show() {
   const { uniqueId } = useParams();
-  const [status, setStatus] = useState('loading'); // loading | success | expired | error
+  const plyrReady = usePlyr();
+  const [status, setStatus] = useState('loading');
   const [data, setData] = useState(null);
-  const [plyrReady, setPlyrReady] = useState(false);
-
-  // Load Plyr.js from CDN once
-  useEffect(() => {
-    if (window.Plyr) { setPlyrReady(true); return; }
-    
-    // Load CSS
-    if (!document.querySelector('link[data-plyr]')) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = 'https://cdn.plyr.io/3.7.8/plyr.css';
-      link.setAttribute('data-plyr', '1');
-      document.head.appendChild(link);
-    }
-    
-    // Load JS
-    const script = document.createElement('script');
-    script.src = 'https://cdn.plyr.io/3.7.8/plyr.polyfilled.js';
-    script.onload = () => setPlyrReady(true);
-    script.onerror = () => setPlyrReady(false);
-    document.head.appendChild(script);
-  }, []);
 
   useEffect(() => {
     fetch(`/api/file/${uniqueId}`)
-      .then(async res => {
-        if (res.status === 410) { setStatus('expired'); return null; }
-        if (!res.ok) { setStatus('error'); return null; }
-        return res.json();
+      .then(async r => {
+        if (r.status === 410) { setStatus('expired'); return null; }
+        if (!r.ok)            { setStatus('error');   return null; }
+        return r.json();
       })
       .then(d => {
         if (!d) return;
         setData(d);
         document.title = `${d.file_name} — StreamDrop`;
         if (d.dashboard_link) localStorage.setItem('streamdrop_dash_url', d.dashboard_link);
-        setStatus('success');
+        setStatus('ok');
       })
       .catch(() => setStatus('error'));
   }, [uniqueId]);
 
-  // ── Loading ──
+  /* ── States ── */
   if (status === 'loading') return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-4">
-      <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-      <p className="text-[color:var(--text-muted)] text-sm tracking-widest uppercase font-bold animate-pulse">Connecting...</p>
+    <div className="w-full h-full flex flex-col items-center justify-center gap-3">
+      <div className="w-11 h-11 border-[3px] border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+      <p className="text-[color:var(--text-muted)] text-sm tracking-widest uppercase font-semibold">Loading…</p>
     </div>
   );
 
-  // ── Expired ──
   if (status === 'expired') return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
-      <div className="text-6xl mb-4">⏰</div>
+    <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center">
+      <div className="w-20 h-20 rounded-full bg-amber-400/10 border border-amber-400/20 flex items-center justify-center mb-6">
+        <Clock size={36} className="text-amber-400" />
+      </div>
       <h2 className="text-2xl font-bold mb-2">Link Expired</h2>
-      <p className="text-[color:var(--text-muted)] max-w-sm text-sm mb-6">
-        This link has expired. Send the file to the bot again to get a fresh stream link.
-      </p>
-      <a href="https://t.me/STREAM_DROP_BOT" target="_blank"
-        className="px-6 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl transition active:scale-95"
-      >Open Bot</a>
+      <p className="text-[color:var(--text-muted)] text-sm max-w-xs">This link has expired. Send the file to the bot again to get a fresh stream link instantly.</p>
     </div>
   );
 
-  // ── Error ──
   if (status === 'error') return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center">
-      <AlertTriangle size={52} className="text-red-400 mb-4" />
+    <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center">
+      <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mb-6">
+        <AlertTriangle size={36} className="text-red-400" />
+      </div>
       <h2 className="text-2xl font-bold mb-2">File Not Found</h2>
-      <p className="text-[color:var(--text-muted)] max-w-sm text-sm">
-        This file was removed or the link is invalid.
-      </p>
+      <p className="text-[color:var(--text-muted)] text-sm max-w-xs">This file was removed or the link is invalid.</p>
     </div>
   );
 
-  const fileType = getFileType(data.file_name);
-  const isMedia = data.is_media;
-  const canPlayInBrowser = isMedia && (fileType === 'audio' || fileType === 'video');
-
-  // For video — try plyr anyway, show external panel on right for MKV hint
-  const isMkv = data.file_name.toLowerCase().endsWith('.mkv');
+  const type = classify(data.file_name);
+  const showPlayer = data.is_media && type === 'video' && browserCanPlay(data.file_name) && plyrReady;
+  const showAudio  = data.is_media && type === 'audio' && plyrReady;
+  const isHevc     = NO_BROWSER.test(data.file_name);
+  const isMkv      = data.file_name.toLowerCase().endsWith('.mkv');
 
   return (
-    <div className="flex flex-col w-full h-full overflow-hidden">
-      
-      {/* ── Player Area ── */}
-      <div className={`w-full flex-shrink-0 ${
-        fileType === 'video' ? 'h-[56vw] max-h-[60vh] md:h-[55vh] bg-black' :
-        fileType === 'audio' ? 'h-auto md:h-72' :
-        'h-0'
-      }`}>
-        {plyrReady && fileType === 'video' && (
-          <VideoPlayer src={data.direct_dl_link} />
-        )}
-        {plyrReady && fileType === 'audio' && (
-          <AudioPlayer src={data.direct_dl_link} fileName={data.file_name} />
-        )}
-        {fileType === 'video' && !plyrReady && (
-          <div className="w-full h-full flex items-center justify-center bg-black">
-            <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
-          </div>
-        )}
-      </div>
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+      className="w-full h-full flex flex-col overflow-hidden"
+    >
+      {/* ── Video Player zone ── */}
+      {(type === 'video') && (
+        <div className="w-full bg-black flex-shrink-0" style={{ height: 'min(56vw, 58vh)' }}>
+          {showPlayer
+            ? <VideoPlayer src={data.direct_dl_link} />
+            : (
+              // Plyr loading spinner or format-not-supported placeholder
+              <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+                {!plyrReady
+                  ? <div className="w-10 h-10 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+                  : (
+                    <>
+                      <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                        <MonitorPlay size={30} className="text-white/30" />
+                      </div>
+                      <div className="text-center px-6">
+                        <p className="text-white/50 text-sm font-medium">
+                          {isHevc ? 'HEVC / 10-bit — cannot play in browser' : 'This format cannot play in browser'}
+                        </p>
+                        <p className="text-white/30 text-xs mt-1">Use an external player below</p>
+                      </div>
+                    </>
+                  )
+                }
+              </div>
+            )
+          }
+        </div>
+      )}
 
-      {/* ── Content Row (below player on mobile, flex on desktop) ── */}
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0">
+      {/* ── Audio zone ── */}
+      {type === 'audio' && (
+        <div className="w-full flex-shrink-0">
+          {showAudio
+            ? <AudioPlayer src={data.direct_dl_link} title={data.file_name} />
+            : <div className="h-24 flex items-center justify-center">
+                <div className="w-8 h-8 border-[3px] border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+              </div>
+          }
+        </div>
+      )}
 
-        {/* Left: Meta + Actions */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-5">
-          
-          {/* File info */}
+      {/* ── Main content row ── */}
+      <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden border-t border-[color:var(--border-color)]">
+
+        {/* Left column */}
+        <div className="flex-1 min-w-0 overflow-y-auto p-5 md:p-7 space-y-5">
+
+          {/* File name + size */}
           <div>
-            <h1 className="text-lg font-bold break-all leading-snug">{data.file_name}</h1>
+            <h1 className="text-lg font-bold leading-snug text-[color:var(--text-color)] break-words">{data.file_name}</h1>
             <p className="text-[color:var(--text-muted)] text-sm mt-1">{data.file_size}</p>
           </div>
 
-          {/* MKV notice */}
-          {isMkv && (
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-              className="flex gap-3 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20"
-            >
-              <AlertTriangle size={18} className="text-amber-400 flex-shrink-0 mt-0.5" />
-              <p className="text-amber-200/80 text-sm">
-                MKV may not play in all browsers. If the player above is black, use external players below.
+          {/* Notice for formats that won't play */}
+          {type === 'video' && (isMkv || isHevc) && (
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-400/5 border border-amber-400/20">
+              <AlertTriangle size={17} className="text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-[color:var(--text-muted)] text-sm leading-relaxed">
+                {isHevc
+                  ? 'HEVC / 10-bit video cannot be decoded by any browser. Use VLC or MX Player for full-quality playback.'
+                  : 'MKV may not play in all browsers. If the player shows black, open in VLC or MX Player.'}
               </p>
-            </motion.div>
+            </div>
+          )}
+
+          {/* Image viewer */}
+          {type === 'image' && (
+            <img src={data.direct_dl_link} alt={data.file_name}
+              className="max-w-full max-h-[65vh] object-contain rounded-xl border border-[color:var(--border-color)]"
+            />
+          )}
+
+          {/* PDF viewer */}
+          {type === 'pdf' && (
+            <iframe src={data.direct_dl_link}
+              className="w-full rounded-xl border border-[color:var(--border-color)]"
+              style={{ height: '72vh' }}
+            />
           )}
 
           {/* Action buttons */}
-          <div className="flex flex-wrap gap-3">
-            <a href={data.direct_dl_link}
-              className="flex items-center gap-2 px-5 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl transition active:scale-95 shadow-lg shadow-indigo-500/20"
-            >
-              <Download size={18} /> Download
-            </a>
-            {fileType === 'video' && (
-              <>
-                <a href={data.vlc_player_link_mobile}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-400 hover:bg-orange-500/20 transition active:scale-95 font-semibold text-sm"
-                >
-                  <Smartphone size={18} /> VLC Mobile
-                </a>
-                <a href={data.mx_player_link}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition active:scale-95 font-semibold text-sm"
-                >
-                  <Tv2 size={18} /> MX Player
-                </a>
-                <a href={data.vlc_player_link_pc}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20 transition active:scale-95 font-semibold text-sm"
-                >
-                  <MonitorPlay size={18} /> VLC PC
-                </a>
-              </>
-            )}
-          </div>
+          <PlayerButtons data={data} />
 
-          {/* Image / PDF viewer */}
-          {fileType === 'image' && (
-            <img src={data.direct_dl_link} alt={data.file_name}
-              className="max-w-full max-h-[60vh] object-contain rounded-xl border border-[color:var(--border-color)]"
-            />
-          )}
-          {fileType === 'pdf' && (
-            <iframe src={data.direct_dl_link} className="w-full h-[70vh] rounded-xl border border-[color:var(--border-color)]" />
+          {/* Mobile queue (shows only when no right sidebar space) */}
+          {data.user_files?.length > 0 && (
+            <div className="md:hidden border-t border-[color:var(--border-color)] pt-5">
+              <Queue currentId={uniqueId} files={data.user_files} />
+            </div>
           )}
         </div>
 
-        {/* Right: Sidebar */}
+        {/* Right column — queue */}
         {data.user_files?.length > 0 && (
-          <div className="w-full md:w-72 flex-shrink-0 border-t md:border-t-0 md:border-l border-[color:var(--border-color)] bg-[color:var(--surface-color)] overflow-hidden flex flex-col">
-            <SidebarQueue currentId={uniqueId} files={data.user_files} />
+          <div className="hidden md:flex w-72 flex-shrink-0 border-l border-[color:var(--border-color)] bg-[color:var(--surface-color)] flex-col overflow-hidden">
+            <Queue currentId={uniqueId} files={data.user_files} />
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
