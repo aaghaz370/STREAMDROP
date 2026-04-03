@@ -61,6 +61,9 @@ async def lifespan(app: FastAPI):
         Config.BOT_USERNAME = me.username
         print(f"✅ Main Bot [@{Config.BOT_USERNAME}] safaltapoorvak start ho gaya.")
 
+        # Initialize the log channel system NOW (bot is live)
+        L.init(bot, Config)
+
         # --- SET BOT MENU COMMANDS ---
         try:
             from pyrogram.types import BotCommand
