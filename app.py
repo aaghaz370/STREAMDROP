@@ -445,6 +445,29 @@ async def callback_handlers(client: Client, cb: "CallbackQuery"):
         await my_links_command(client, cb.message)
     elif cb.data == "plans":
         await show_plans_command(client, cb.message)
+    elif cb.data.startswith("showplan_"):
+        plan_id = cb.data.split("_")[1]
+        
+        details = {
+            "trial": "**🎁 7 DAYS FREE TRIAL**\n├ 💸 **Price:** FREE\n├ ⚡ **Uploads:** Unlimited\n└ ⏳ **Link Expiry:** Lifetime (Never Expire)",
+            "weekly": "**🚀 1 WEEK PLAN**\n├ 💸 **Price:** ₹70 / 7 Days\n├ ⚡ **Uploads:** Unlimited\n└ ⏳ **Link Expiry:** 6 Months",
+            "monthly": "**🌟 1 MONTH PLAN**\n├ 💸 **Price:** ₹219 / 30 Days\n├ ⚡ **Uploads:** Unlimited\n└ ⏳ **Link Expiry:** 8 Months",
+            "bimonthly": "**👑 2 MONTHS PLAN (BEST VALUE)**\n├ 💸 **Price:** ₹499 / 60 Days\n├ ⚡ **Uploads:** Unlimited\n└ ⏳ **Link Expiry:** 1 Year",
+            "lifetime": "**♾️ LIFETIME GOD PLAN**\n├ 💸 **Price:** ₹1500 / Lifetime\n├ ⚡ **Uploads:** Unlimited\n└ ⏳ **Link Expiry:** Lifetime (Never Expire)"
+        }
+        
+        text = f"""
+{details.get(plan_id, "Plan Details")}
+
+💡 **How to Buy / Activate?**
+Click the button below to text our Auto Manager bot! 
+We use a separate bot to securely handle all premiums and payments.
+"""
+        buttons = InlineKeyboardMarkup([
+            [InlineKeyboardButton("💳 Contact Manager Bot", url="https://t.me/Univora_Managerbot")],
+            [InlineKeyboardButton("🔙 Back to Plans", callback_data="plans")]
+        ])
+        await cb.message.edit_text(text, reply_markup=buttons)
         
     await cb.answer()
 
@@ -454,53 +477,43 @@ from subscription import get_plan_status, increment_user_usage, PLANS
 
 @bot.on_message(filters.command("showplan") & filters.private)
 async def show_plans_command(client: Client, message: Message):
-    user_id = message.from_user.id
+    user_id = message.from_user.id if hasattr(message.from_user, "id") else message.chat.id
     status = await get_plan_status(user_id)
     plan_name_str = status.get('plan_type', 'free')
-    asyncio.create_task(L.log_showplan(message.from_user, plan_name_str))
     
-    # helper to check active
-    plan = plan_name_str
-    def active_tag(p_name):
-        return "✅ (CURRENT)" if plan == p_name else ""
+    # Only fire log if this is a fresh command, not a callback edit
+    if message.text and message.text.startswith("/showplan"):
+        asyncio.create_task(L.log_showplan(message.from_user, plan_name_str))
+    
+    pexp = status.get('plan_expiry')
+    pexp_str = pexp.strftime('%d %b %Y') if pexp else 'Never'
 
-    # User Status Box
-    user_status_box = f"""
+    text = f"""
 ━━━━━━━━━━━━━━━━━━
 👤 **YOUR CURRENT STATUS**
 🏷 **Plan:** {status['name']}
-⚡ **Daily Limit:** {status['daily_left']} left
-⏳ **Plan Expiry:** {status.get('expiry_date') or 'Never'}
+⚡ **Daily Limit:** {status['daily_left']}
+⏳ **Plan Expiry:** {pexp_str}
 ━━━━━━━━━━━━━━━━━━
-"""
 
-    text = f"""
 💎 **PREMIUM SUBSCRIPTION PLANS** 💎
-
 Unlock **Unlimited Uploads** & **Longer Link Expiry**!
 
-**🚀 1 WEEK PLAN** {active_tag('weekly')}
-├ 💸 **Price:** ₹70 / 7 Days
-├ ⚡ **Uploads:** Unlimited
-└ ⏳ **Link Expiry:** 6 Months
-
-**🌟 1 MONTH PLAN** {active_tag('monthly')}
-├ 💸 **Price:** ₹219 / 30 Days
-├ ⚡ **Uploads:** Unlimited
-└ ⏳ **Link Expiry:** 8 Months
-
-**👑 2 MONTHS PLAN (BEST VALUE)** {active_tag('bimonthly')}
-├ 💸 **Price:** ₹499 / 60 Days
-├ ⚡ **Uploads:** Unlimited
-└ ⏳ **Link Expiry:** 1 YEAR
-
-{user_status_box}
-
-💡 **How to Buy?**
-Contact Admin to upgrade your plan instantly:
-👤 **Admin:** @Univora88
+👇 **Select a plan below to view details:**
 """
-    await message.reply_text(text, quote=True)
+    buttons = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎁 7 Days Free Trial", callback_data="showplan_trial")],
+        [InlineKeyboardButton("🚀 1 Week", callback_data="showplan_weekly"),
+         InlineKeyboardButton("🌟 1 Month", callback_data="showplan_monthly")],
+        [InlineKeyboardButton("👑 2 Months", callback_data="showplan_bimonthly"),
+         InlineKeyboardButton("♾️ Lifetime", callback_data="showplan_lifetime")]
+    ])
+    
+    # if message is from a callback, it will be edited, otherwise replied to
+    if not message.text:
+        await message.edit_text(text, reply_markup=buttons)
+    else:
+        await message.reply_text(text, quote=True, reply_markup=buttons)
 
 @bot.on_message(filters.command("mydata") & filters.private)
 async def mydata_command(client: Client, message: Message):
@@ -509,7 +522,7 @@ async def mydata_command(client: Client, message: Message):
     total_files = await db.get_user_total_links(user_id)
     
     # Format Expiry
-    expiry = status.get("expiry_date")
+    expiry = status.get("plan_expiry")
     if expiry:
          expiry_str = expiry.strftime("%d %B %Y")
     else:
@@ -593,7 +606,7 @@ async def set_plan_command(client: Client, message: Message):
         return
     
     if len(message.command) < 3:
-        await message.reply_text("Usage: `/setplan user_id plan_name`\n\nPlans: weekly, monthly, bimonthly, free")
+        await message.reply_text("Usage: `/setplan user_id plan_name`\n\nPlans: trial, weekly, monthly, bimonthly, lifetime, free")
         return
         
     try:
@@ -607,9 +620,11 @@ async def set_plan_command(client: Client, message: Message):
         # Calculate Expiry
         import datetime
         plans_duration = {
+            "trial": 7,
             "weekly": 7,
             "monthly": 30,
             "bimonthly": 60,
+            "lifetime": 3650,
             "free": 0
         }
         
@@ -1365,6 +1380,72 @@ async def stream_media(r:Request, unique_id: str, fname: str):
     except Exception:print(traceback.format_exc());raise HTTPException(500)
 
 
+
+# =====================================================================================
+# --- STREAMPAYMENT BOT-TO-BOT SECURE API ---
+# =====================================================================================
+from pydantic import BaseModel
+from fastapi import HTTPException
+
+class SetPlanRequest(BaseModel):
+    user_id: int
+    plan_name: str
+    api_key: str
+
+@app.post("/api/streampayment/setplan")
+async def api_set_plan(req: SetPlanRequest):
+    if req.api_key != getattr(Config, "PAYMENT_API_KEY", "Univora_SecureKey_12345"):
+        raise HTTPException(status_code=403, detail="Invalid Payment API Key")
+        
+    plan_name = req.plan_name.lower()
+    
+    if plan_name not in PLANS and plan_name != "free":
+         raise HTTPException(status_code=400, detail="Invalid Plan Name")
+
+    # Calculate Expiry
+    import datetime
+    plans_duration = {
+        "trial": 7,
+        "weekly": 7,
+        "monthly": 30,
+        "bimonthly": 60,
+        "lifetime": 3650,
+        "free": 0
+    }
+    
+    duration = plans_duration.get(plan_name, 0)
+    
+    if duration > 0:
+        plan_expiry = datetime.datetime.now() + datetime.timedelta(days=duration)
+        msg_header = "🎉 **CONGRATULATIONS! PAYMENT SUCCESS!**"
+        msg_body = f"Your Univora StreamDrop plan is now **{plan_name.upper()}**."
+        msg_footer = "⚡ Enjoy **Unlimited Uploads** & **Lifetime Links**!"
+    else:
+        plan_expiry = None
+        msg_header = "⚠️ **PLAN EXPIRED/CHANGED**"
+        msg_body = f"Your plan has been reset to **FREE TIER**."
+        msg_footer = "You can now upload **5 Files/Day**."
+        
+    # Update DB
+    await db.set_user_plan(req.user_id, plan_name, plan_expiry)
+    
+    # Notify User via running Client instance
+    try:
+        from app import bot, L # Bot instance is globally accessible
+        if bot.is_initialized:
+            await bot.send_message(
+                req.user_id, 
+                f"{msg_header}\n\n{msg_body}\n\n{msg_footer}\n\n__Check your status with__ `/mydata`"
+            )
+            # Log it via Admin override dummy obj
+            class DummyUser:
+                first_name = "ManagerBot API"
+                id = getattr(Config, "OWNER_ID", 0)
+            asyncio.create_task(L.log_plan_set(DummyUser(), req.user_id, plan_name, plan_expiry))
+    except Exception as e:
+        print(f"API Setplan Notify Error: {e}")
+        
+    return {"status": "success", "user_id": req.user_id, "new_plan": plan_name, "expiry": str(plan_expiry)}
 
 # =====================================================================================
 # --- MAIN EXECUTION BLOCK ---

@@ -23,6 +23,16 @@ PLANS = {
         "daily_limit": 999999, # Unlimited
         "link_expiry_days": 365, # 1 Year (User said 499/2 months expiry 1yr)
         "name": "2 Month Plan (60 Days)"
+    },
+    "trial": {
+        "daily_limit": 999999, # Unlimited
+        "link_expiry_days": 3650, # Never basically (10 years)
+        "name": "7 Days Free Premium Trial"
+    },
+    "lifetime": {
+        "daily_limit": 999999, # Unlimited
+        "link_expiry_days": 3650, # Never basically
+        "name": "Lifetime GOD Plan"
     }
 }
 
@@ -32,10 +42,11 @@ async def get_plan_status(user_id: int):
         return {
             "name": "👑 OWNER (GOD MODE)",
             "can_upload": True,
-            "expiry_date": None, # Never Expires
+            "plan_expiry": None, # Never Expires
             "daily_left": "∞",
             "plan_type": "admin",
-            "current_count": "Unlimited"
+            "current_count": "Unlimited",
+            "link_expiry_days": 3650
         }
 
     user_data = await db.get_user_data(user_id)
@@ -64,10 +75,11 @@ async def get_plan_status(user_id: int):
     return {
         "name": PLANS[plan_name]["name"],
         "can_upload": current_count < limit,
-        "expiry_date": _get_link_expiry(plan_name),
+        "plan_expiry": plan_expiry,
         "daily_left": limit - current_count if limit < 999999 else "∞",
         "plan_type": plan_name,
-        "current_count": current_count
+        "current_count": current_count,
+        "link_expiry_days": PLANS[plan_name]["link_expiry_days"]
     }
 
 def _get_link_expiry(plan_name):

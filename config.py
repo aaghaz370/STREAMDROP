@@ -35,3 +35,6 @@ class Config:
     
     # Log Channel for all bot activity
     LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", -1003741324316))
+    
+    # API key to control setplan externally
+    PAYMENT_API_KEY = os.environ.get("PAYMENT_API_KEY", "Univora_SecureKey_12345")
