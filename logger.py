@@ -19,6 +19,41 @@ def init(bot_instance, config_class):
 SEP  = "─" * 32
 DSEP = "═" * 32
 
+import json
+import urllib.request
+import asyncio
+
+async def _fallback_send_message(chat_id: int, text: str):
+    """Bypass Pyrogram completely and hit Telegram HTTP API. Perfect for fresh deploys."""
+    bot_token = _CONFIG.BOT_TOKEN
+    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+    payload = json.dumps({
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": True
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+    def fetch():
+        urllib.request.urlopen(req, timeout=5)
+    await asyncio.to_thread(fetch)
+
+async def _safe_send_message(text: str):
+    """Attempts Pyrogram send, automatically falls back to raw HTTP API if peer cache is empty."""
+    chat_id = _CONFIG.LOG_CHANNEL
+    try:
+        await _BOT.send_message(chat_id, text, disable_web_page_preview=True)
+    except Exception as e:
+        # If Pyrogram complains it hasn't seen the channel (common on Render restarts)
+        err_str = str(e).lower()
+        if "peer" in err_str or "chat" in err_str or "forbidden" in err_str:
+            try:
+                await _fallback_send_message(chat_id, text)
+            except Exception as e2:
+                print(f"[LOG ERROR] Final HTTP fallback failed: {e2}")
+        else:
+            print(f"[LOG ERROR] Pyrogram send failed: {e}")
+
 def _now() -> str:
     return datetime.datetime.now().strftime("%d %b %Y  •  %I:%M:%S %p")
 
@@ -54,6 +89,18 @@ def _ready() -> bool:
 # ═════════════════════════════════════════════════════════════
 # LOG: BOT STARTED / RESTARTED
 # ═════════════════════════════════════════════════════════════
+
+async def _report_error(func_name: str, tb_str: str):
+    print(f"[LOG ERROR] {func_name}:\n{tb_str}")
+    if _BOT and _CONFIG and getattr(_CONFIG, 'OWNER_ID', None):
+        try:
+            await _BOT.send_message(
+                _CONFIG.OWNER_ID, 
+                f"⚠️ **LOGGER ERROR in {func_name}**\n\n```python\n{tb_str[:3800]}\n```"
+            )
+        except Exception:
+            pass
+
 async def log_bot_start():
     if not _ready(): return
     try:
@@ -65,7 +112,7 @@ async def log_bot_start():
         )
         await _BOT.send_message(_CONFIG.LOG_CHANNEL, text, disable_web_page_preview=True)
     except Exception:
-        print(f"[LOG ERROR] log_bot_start:\n{traceback.format_exc()}")
+        await _report_error("log_bot_start", traceback.format_exc())
 
 
 # ═════════════════════════════════════════════════════════════
@@ -80,7 +127,7 @@ async def log_new_user(user, is_new: bool = True):
             f"{_user_block(user)}\n\n"
             f"{_footer()}"
         )
-        await _BOT.send_message(_CONFIG.LOG_CHANNEL, text, disable_web_page_preview=True)
+        await _safe_send_message(text)
     except Exception:
         print(f"[LOG ERROR] log_new_user:\n{traceback.format_exc()}")
 
@@ -125,7 +172,7 @@ async def log_file_upload(
             f"⬇️ **Download:** {dl_link}\n\n"
             f"{_footer()}"
         )
-        await _BOT.send_message(_CONFIG.LOG_CHANNEL, text, disable_web_page_preview=True)
+        await _safe_send_message(text)
 
         # Forward actual file from storage channel for quick preview
         try:
@@ -134,8 +181,23 @@ async def log_file_upload(
                 from_chat_id=_CONFIG.STORAGE_CHANNEL,
                 message_ids=storage_msg_id
             )
-        except Exception:
-            pass  # OK if bot can't forward (permissions)
+        except Exception as e:
+            # If pyrogram fails, attempt a raw HTTP copyMessage (bots can copy cross-channel if admin)
+            try:
+                bot_token = _CONFIG.BOT_TOKEN
+                url = f"https://api.telegram.org/bot{bot_token}/copyMessage"
+                import json, urllib.request, asyncio
+                payload = json.dumps({
+                    "chat_id": _CONFIG.LOG_CHANNEL,
+                    "from_chat_id": _CONFIG.STORAGE_CHANNEL,
+                    "message_id": storage_msg_id
+                }).encode("utf-8")
+                req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+                def copy_fetch():
+                    urllib.request.urlopen(req, timeout=5)
+                await asyncio.to_thread(copy_fetch)
+            except Exception as e2:
+                print(f"[LOG ERROR] HTTP forward failed: {e2}")
 
     except Exception:
         print(f"[LOG ERROR] log_file_upload:\n{traceback.format_exc()}")
@@ -154,7 +216,7 @@ async def log_showplan(user, current_plan: str):
             f"💡 _Potential upgrade — reach out if needed!_\n\n"
             f"{_footer()}"
         )
-        await _BOT.send_message(_CONFIG.LOG_CHANNEL, text, disable_web_page_preview=True)
+        await _safe_send_message(text)
     except Exception:
         print(f"[LOG ERROR] log_showplan:\n{traceback.format_exc()}")
 
@@ -175,7 +237,7 @@ async def log_plan_set(admin_user, target_id: int, plan_name: str, expiry_date=N
             f"📅 **Valid Until:** `{expiry_str}`\n\n"
             f"{_footer()}"
         )
-        await _BOT.send_message(_CONFIG.LOG_CHANNEL, text, disable_web_page_preview=True)
+        await _safe_send_message(text)
     except Exception:
         print(f"[LOG ERROR] log_plan_set:\n{traceback.format_exc()}")
 
@@ -194,7 +256,7 @@ async def log_ban_action(admin_user, target_id: int, action: str):
             f"🎯 **Target User ID:** `{target_id}`\n\n"
             f"{_footer()}"
         )
-        await _BOT.send_message(_CONFIG.LOG_CHANNEL, text, disable_web_page_preview=True)
+        await _safe_send_message(text)
     except Exception:
         print(f"[LOG ERROR] log_ban_action:\n{traceback.format_exc()}")
 
@@ -212,7 +274,7 @@ async def log_limit_hit(user, count: int, limit: int):
             f"💡 _Potential premium convert!_\n\n"
             f"{_footer()}"
         )
-        await _BOT.send_message(_CONFIG.LOG_CHANNEL, text, disable_web_page_preview=True)
+        await _safe_send_message(text)
     except Exception:
         print(f"[LOG ERROR] log_limit_hit:\n{traceback.format_exc()}")
 
@@ -229,7 +291,7 @@ async def log_force_sub_fail(user):
             f"📌 _User has not joined the required channel._\n\n"
             f"{_footer()}"
         )
-        await _BOT.send_message(_CONFIG.LOG_CHANNEL, text, disable_web_page_preview=True)
+        await _safe_send_message(text)
     except Exception:
         print(f"[LOG ERROR] log_force_sub_fail:\n{traceback.format_exc()}")
 
@@ -251,6 +313,6 @@ async def log_broadcast(admin_user, total: int, success: int, blocked: int, dele
             f"⚠️ **Failed:** `{failed}`\n\n"
             f"{_footer()}"
         )
-        await _BOT.send_message(_CONFIG.LOG_CHANNEL, text, disable_web_page_preview=True)
+        await _safe_send_message(text)
     except Exception:
         print(f"[LOG ERROR] log_broadcast:\n{traceback.format_exc()}")
