@@ -15,6 +15,11 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
+    // Save to local storage for the Sidebar!
+    if (userId && token) {
+      localStorage.setItem('streamdrop_dash_url', `/dashboard/${userId}?token=${token}`);
+    }
+
     fetch(`/api/dashboard/${userId}?token=${token}`)
       .then(res => {
         if (!res.ok) throw new Error('Access Denied or Invalid Token');

@@ -20,8 +20,10 @@ function Layout({ children }) {
     }
   }, [isDark]);
 
+  const dashUrl = localStorage.getItem('streamdrop_dash_url') || '/dashboard/unauthorized';
+  
   const navLinks = [
-    { name: 'Dashboard', path: '/dashboard', icon: <Home size={22} />, match: '/dashboard' },
+    { name: 'Dashboard', path: dashUrl, icon: <Home size={22} />, match: '/dashboard' },
     { name: 'My Stream', path: '/', icon: <PlaySquare size={22} />, match: '/show' },
     { name: 'Profile', path: '#profile', icon: <User size={22} />, match: '#profile' },
   ];

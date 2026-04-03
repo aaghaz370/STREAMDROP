@@ -30,6 +30,9 @@ export default function Show() {
       })
       .then(d => {
         setData(d);
+        if (d.dashboard_link) {
+           localStorage.setItem('streamdrop_dash_url', d.dashboard_link);
+        }
         setLoading(false);
       })
       .catch(err => {
@@ -147,15 +150,25 @@ export default function Show() {
             onDoubleClick={handleDoubleTap}
             onClick={togglePlay}
           >
+            {/* BIG Center Play Button! Ensures user knows video is there */}
+            {!isPlaying && (
+               <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+                 <div className="w-24 h-24 bg-white/10 backdrop-blur-md rounded-full shadow-[0_0_50px_rgba(255,255,255,0.1)] border border-white/20 flex items-center justify-center animate-pulse">
+                   <Play fill="white" size={48} className="text-white ml-2 drop-shadow-lg" />
+                 </div>
+               </div>
+            )}
+            
             <video
               ref={videoRef}
               src={data.direct_dl_link}
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain bg-black/90"
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleLoadedMetadata}
               onEnded={() => setIsPlaying(false)}
               playsInline
               autoPlay
+              muted={isMuted}
             />
             
             {/* Custom Netflix-style Skin */}
@@ -263,17 +276,17 @@ export default function Show() {
          </div>
          
          <div className="flex-1 p-6 pt-4">
-           {data.playlist && data.playlist.length > 0 && (
+           {data.user_files && data.user_files.length > 0 && (
              <>
                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                  Up Next
                </h3>
                <div className="space-y-2">
-                 {data.playlist.map(item => (
-                   <Link key={item.id} to={`/show/${item.id}`} className="group block p-3 rounded-xl border border-[color:var(--border-color)] hover:border-indigo-500/50 hover:bg-indigo-500/5 transition">
+                 {data.user_files.map(item => (
+                   <a key={item.id} href={item.stream_link} className="group block p-3 rounded-xl border border-[color:var(--border-color)] hover:border-indigo-500/50 hover:bg-indigo-500/5 transition">
                      <p className="text-sm font-medium truncate group-hover:text-indigo-500 transition-colors">{item.name}</p>
                      <p className="text-xs text-[color:var(--text-muted)] mt-1">{item.size}</p>
-                   </Link>
+                   </a>
                  ))}
                </div>
              </>

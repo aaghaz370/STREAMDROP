@@ -31,7 +31,7 @@ PLANS = {
     },
     "lifetime": {
         "daily_limit": 999999, # Unlimited
-        "link_expiry_days": 3650, # Never basically
+        "link_expiry_days": None, # Never basically
         "name": "Lifetime GOD Plan"
     }
 }
@@ -46,7 +46,7 @@ async def get_plan_status(user_id: int):
             "daily_left": "∞",
             "plan_type": "admin",
             "current_count": "Unlimited",
-            "link_expiry_days": 3650
+            "link_expiry_days": None
         }
 
     user_data = await db.get_user_data(user_id)

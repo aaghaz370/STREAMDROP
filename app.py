@@ -764,7 +764,11 @@ async def handle_file_upload(message: Message, user_id: int):
         
         # Calculate exact Link Expiry Date
         import datetime
-        link_exp = datetime.datetime.now() + datetime.timedelta(days=status["link_expiry_days"])
+        expiry_days = status.get("link_expiry_days")
+        if expiry_days:
+            link_exp = datetime.datetime.now() + datetime.timedelta(days=expiry_days)
+        else:
+            link_exp = None
         
         # Save to DB with Expiry
         await db.save_link(
