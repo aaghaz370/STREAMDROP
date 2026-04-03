@@ -32,3 +32,6 @@ class Config:
         
     # Yeh bot ka username store karega (code isse automatic set karega)
     BOT_USERNAME = ""
+    
+    # Log Channel for all bot activity
+    LOG_CHANNEL = int(os.environ.get("LOG_CHANNEL", -1003741324316))

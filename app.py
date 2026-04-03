@@ -35,6 +35,7 @@ import math
 # Project ki dusri files se important cheezein import karo
 from config import Config
 from database import db
+import logger as L  # Log channel integration
 
 # =====================================================================================
 # --- SETUP: BOT, WEB SERVER, AUR LOGGING ---
@@ -108,6 +109,13 @@ async def lifespan(app: FastAPI):
 
         await db.save_session_file("SimpleStreamBot", "SimpleStreamBot.session")
 
+        # Fire log_bot_start after a short delay to ensure bot is fully ready
+        async def _delayed_start_log():
+            import asyncio
+            await asyncio.sleep(3)
+            await L.log_bot_start()
+        asyncio.create_task(_delayed_start_log())
+
         print("--- Lifespan: Startup safaltapoorvak poora hua. ---")
     
     except Exception as e:
@@ -177,6 +185,12 @@ async def check_access(user_id: int):
                 invite_link = f"https://t.me/{str(Config.FORCE_SUB_CHANNEL).replace('@', '')}"
             
             # Special return for Force Sub to allow constructing Inline Keyboard
+            # Log the block event (fire and forget)
+            try:
+                user_obj = await bot.get_users(user_id)
+                asyncio.create_task(L.log_force_sub_fail(user_obj))
+            except Exception:
+                pass
             return False, ("FORCE_SUB", invite_link)
         except Exception:
             # If bot can't check (e.g. not admin), pass to avoid blocking user
@@ -336,6 +350,14 @@ __👇 Click below to see Plans or get Help!__
         ])
         await message.reply_text(reply_text, reply_markup=buttons)
 
+        # Log new user (check if truly new via db)
+        try:
+            user_data = await db.get_user_data(message.from_user.id)
+            is_new = user_data.get("daily_count", 0) == 0 and not user_data.get("plan")
+            asyncio.create_task(L.log_new_user(message.from_user, is_new=True))
+        except Exception:
+            pass
+
 @bot.on_message(filters.command("help") & filters.private)
 async def help_command(client: Client, message: Message):
     text = """
@@ -431,9 +453,11 @@ from subscription import get_plan_status, increment_user_usage, PLANS
 async def show_plans_command(client: Client, message: Message):
     user_id = message.from_user.id
     status = await get_plan_status(user_id)
-    plan = status['plan_type']
+    plan_name_str = status.get('plan_type', 'free')
+    asyncio.create_task(L.log_showplan(message.from_user, plan_name_str))
     
     # helper to check active
+    plan = plan_name_str
     def active_tag(p_name):
         return "✅ (CURRENT)" if plan == p_name else ""
 
@@ -611,7 +635,7 @@ async def set_plan_command(client: Client, message: Message):
             )
         except:
             await message.reply_text(f"⚠️ User `{target_id}` could not be notified (Blocked Bot?).")
-            
+        asyncio.create_task(L.log_plan_set(message.from_user, target_id, plan_name, plan_expiry))
     except Exception as e:
         await message.reply_text(f"Error: {e}")
 
@@ -671,6 +695,7 @@ async def broadcast_command(client: Client, message: Message):
         f"🗑 Deleted: `{deleted}`\n"
         f"⚠️ Failed: `{failed}`"
     )
+    asyncio.create_task(L.log_broadcast(message.from_user, total_users, success, blocked, deleted, failed))
 
 
 async def handle_file_upload(message: Message, user_id: int):
@@ -694,6 +719,8 @@ async def handle_file_upload(message: Message, user_id: int):
             f"👉 Use `/showplan` to see prices.",
             quote=True
         )
+        # Log limit hit
+        asyncio.create_task(L.log_limit_hit(message.from_user, status['current_count'], 5))
         return
 
     try:
@@ -814,6 +841,20 @@ async def handle_file_upload(message: Message, user_id: int):
             reply_markup=InlineKeyboardMarkup(buttons),
             quote=True
         )
+
+        # Log file upload to log channel
+        asyncio.create_task(L.log_file_upload(
+            user=message.from_user,
+            file_name=file_name,
+            file_size=file_size,
+            mime_type=mime_type,
+            page_link=page_link,
+            dl_link=dl_link,
+            unique_id=unique_id,
+            storage_msg_id=sent_message.id,
+            plan_type=status['plan_type'],
+            expiry_date=status.get('expiry_date')
+        ))
     except Exception as e:
         error_details = traceback.format_exc()
         print(f"!!! FILE UPLOAD ERROR !!!")
@@ -861,6 +902,7 @@ async def ban_command(client: Client, message: Message):
         user_id = int(message.command[1])
         await db.ban_user(user_id)
         await message.reply_text(f"🚫 User `{user_id}` has been BANNED.")
+        asyncio.create_task(L.log_ban_action(message.from_user, user_id, "ban"))
     except Exception as e:
         await message.reply_text(f"Error: {e}")
 
@@ -877,6 +919,7 @@ async def unban_command(client: Client, message: Message):
         user_id = int(message.command[1])
         await db.unban_user(user_id)
         await message.reply_text(f"✅ User `{user_id}` has been UNBANNED.")
+        asyncio.create_task(L.log_ban_action(message.from_user, user_id, "unban"))
     except Exception as e:
         await message.reply_text(f"Error: {e}")
 
