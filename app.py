@@ -1187,10 +1187,21 @@ async def get_file_details_api(request: Request, unique_id: str):
         "dashboard_link": None  # will be set below if admin
     }
     
-    # Inject admin dashboard link using HMAC token
+    # --- Determine actual owner ---
+    # Admin links from the bot have ?admin=true appended.
+    # Old uploads may have user_id=0 in DB. Combine both signals to identify owner.
     user_id_from_db = link_data.get("user_id", 0)
+    is_admin_request = request.query_params.get("admin") == "true"
+    
+    # If user_id is 0 (old upload before user tracking) AND admin=true param is present,
+    # treat as owner. This is safe because ?admin=true only affects playlist/dashboard UX, not auth.
+    if (not user_id_from_db) and is_admin_request and Config.OWNER_ID:
+        user_id_from_db = Config.OWNER_ID
+        print(f"INFO: Resolved missing user_id to OWNER_ID via ?admin=true for {unique_id}")
+    
+    # Inject admin dashboard link using HMAC token
     try:
-        if user_id_from_db == Config.OWNER_ID:
+        if user_id_from_db and user_id_from_db == Config.OWNER_ID:
             import hmac, hashlib
             secret = Config.BOT_TOKEN.encode()
             tok = hmac.new(secret, str(Config.OWNER_ID).encode(), hashlib.sha256).hexdigest()

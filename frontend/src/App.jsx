@@ -21,8 +21,22 @@ function Layout({ children }) {
     }
   }, [isDark]);
 
-  const dashUrl = localStorage.getItem('streamdrop_dash_url') || '/dashboard/unauthorized';
-  
+  const [dashUrl, setDashUrl] = useState(
+    () => localStorage.getItem('streamdrop_dash_url') || '/dashboard/unauthorized'
+  );
+
+  // Re-read dashUrl whenever localStorage is updated by Show.jsx (after API call)
+  useEffect(() => {
+    const sync = () => {
+      const stored = localStorage.getItem('streamdrop_dash_url');
+      if (stored) setDashUrl(stored);
+    };
+    window.addEventListener('storage', sync);
+    // Also poll briefly after mount to catch same-tab writes
+    const t = setInterval(sync, 2000);
+    return () => { window.removeEventListener('storage', sync); clearInterval(t); };
+  }, []);
+
   const navLinks = [
     { name: 'Dashboard', path: dashUrl, icon: <Home size={22} />, match: '/dashboard' },
     { name: 'My Stream', path: '/', icon: <PlaySquare size={22} />, match: '/show' },
