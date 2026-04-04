@@ -110,23 +110,6 @@ export default function Show() {
     
     playerInstance.current = p;
     
-    // --- Advanced Interaction Listeners ---
-    const handleDblClick = (e) => {
-        if (!playerInstance.current || type !== 'video') return;
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const rect = p.elements.container.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        if (clickX > rect.width / 2) {
-            p.forward(10);
-            showHint('forward');
-        } else {
-            p.rewind(10);
-            showHint('rewind');
-        }
-    };
-
     const handleKeyDown = (e) => {
         // Only trigger if not typing in an input
         if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
@@ -161,9 +144,6 @@ export default function Show() {
         }
     };
 
-    p.on('ready', () => {
-        p.elements.container.addEventListener('dblclick', handleDblClick);
-    });
     window.addEventListener('keydown', handleKeyDown);
 
     return () => { 
@@ -377,6 +357,26 @@ export default function Show() {
                   {/* Video overlays */}
                   {type === 'video' && (
                       <>
+                          {/* Invisible Touch Hitboxes to brutally prevent native fullscreen double-click */}
+                          <div className="absolute top-12 bottom-20 left-0 w-[45%] z-[25]"
+                               onDoubleClick={(e) => {
+                                   e.preventDefault(); e.stopPropagation();
+                                   if(playerInstance.current) { playerInstance.current.rewind(10); showHint('rewind'); }
+                               }}
+                               onClick={(e) => {
+                                   if(playerInstance.current) { playerInstance.current.togglePlay(); }
+                               }}
+                          />
+                          <div className="absolute top-12 bottom-20 right-0 w-[45%] z-[25]"
+                               onDoubleClick={(e) => {
+                                   e.preventDefault(); e.stopPropagation();
+                                   if(playerInstance.current) { playerInstance.current.forward(10); showHint('forward'); }
+                               }}
+                               onClick={(e) => {
+                                   if(playerInstance.current) { playerInstance.current.togglePlay(); }
+                               }}
+                          />
+                          
                           {/* Double Tap Visual Hints */}
                           {hint === 'rewind' && (
                               <div className="absolute top-1/2 left-1/4 -translate-y-1/2 -translate-x-1/2 z-30 flex flex-col items-center justify-center bg-black/40 rounded-full w-20 h-20 text-white animate-pulse pointer-events-none">
