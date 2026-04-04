@@ -118,7 +118,7 @@ export default function Show() {
     ambientInterval.current = setInterval(() => {
       if(v.paused || v.ended) return;
       ctx.drawImage(v, 0, 0, c.width, c.height);
-    }, 100); // 10fps glow update is enough
+    }, 300); // 3fps glow update prevents severe composite lag
     
     return () => clearInterval(ambientInterval.current);
   }, [ambientMode, status, type]);
@@ -239,8 +239,10 @@ export default function Show() {
       {/* ── Dynamic Background Blobs ── */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
           <motion.div animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                      style={{ willChange: "transform, opacity", transform: "translateZ(0)" }}
                       className={`absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full blur-[150px] bg-gradient-to-br ${theme.bg}`} />
           <motion.div animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 20, repeat: Infinity, ease: "linear", delay: 2 }}
+                      style={{ willChange: "transform, opacity", transform: "translateZ(0)" }}
                       className={`absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full blur-[150px] bg-gradient-to-tl ${theme.bg}`} />
       </div>
 
@@ -289,6 +291,7 @@ export default function Show() {
                       {type === 'audio' && (
                           <div className="w-full h-full flex flex-col items-center justify-center py-20 px-8">
                               <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
+                                          style={{ willChange: "transform", transform: "translateZ(0)" }}
                                           className={`relative w-48 h-48 md:w-64 md:h-64 rounded-full bg-gradient-to-br from-[#1a1a1a] to-black border-4 ${theme.border} flex items-center justify-center shadow-2xl mb-12`}>
                                   <div className="absolute inset-2 rounded-full border border-white/5" />
                                   <div className="absolute inset-4 rounded-full border border-white/5" />
