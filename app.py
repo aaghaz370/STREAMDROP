@@ -1085,7 +1085,7 @@ __Powered by Univora | Dev: @rolexsir_8__
 # --- FASTAPI WEB SERVER ---
 # =====================================================================================
  
-@app.get("/")
+@app.get("/health")
 async def health_check():
     """
     This route provides a 200 OK response for uptime monitors.

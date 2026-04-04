@@ -8,12 +8,32 @@ class Database:
         self._client = None
         self.db = None
         self.col = None
+        
+        self.BACKUP_DB_URL = "mongodb+srv://streamdrop:aaghaz9431@streamdrop.boddtlb.mongodb.net/?appName=streamdrop"
+        self._client2 = None
+        self.db2 = None
+        self.col2 = None
+
+    def _run_backup(self, coro):
+        import asyncio
+        async def safe_run():
+            try:
+                await coro
+            except Exception as e:
+                print(f"⚠️ BACKUP DB ERROR: {e}")
+        asyncio.create_task(safe_run())
 
     async def connect(self):
         print(f"Connecting to MongoDB...")
+        # Connect Primary
         self._client = motor.motor_asyncio.AsyncIOMotorClient(Config.DATABASE_URL)
         self.db = self._client["UnivoraStreamDrop"]
         self.col = self.db.links
+        
+        # Connect Backup
+        self._client2 = motor.motor_asyncio.AsyncIOMotorClient(self.BACKUP_DB_URL)
+        self.db2 = self._client2["UnivoraStreamDrop"]
+        self.col2 = self.db2.links
         
         # Create indexes for faster queries (Performance Optimization)
         try:
@@ -21,15 +41,23 @@ class Database:
             await self.col.create_index("timestamp")
             await self.col.create_index([("user_id", 1), ("timestamp", -1)])
             await self.db.users.create_index("_id")
+            
+            # Backup indexes
+            await self.col2.create_index("user_id")
+            await self.col2.create_index("timestamp")
+            await self.db2.users.create_index("_id")
+            
             print("✅ Database indexes created/verified.")
         except Exception as e:
             print(f"⚠️ Index creation warning: {e}")
         
-        print("✅ Database connection established (MongoDB).")
+        print("✅ Database connection established (PRIMARY & BACKUP MongoDB).")
 
     async def disconnect(self):
         if self._client:
             self._client.close()
+        if self._client2:
+            self._client2.close()
 
     async def save_link(self, unique_id, message_id, backups: dict, file_name: str = "Unknown", file_size: str = "Unknown", user_id: int = 0, expiry_date: datetime.datetime = None):
         data = {
@@ -44,10 +72,14 @@ class Database:
             "expiry_date": expiry_date # New Field
         }
         await self.col.update_one({"_id": unique_id}, {"$set": data}, upsert=True)
+        self._run_backup(self.col2.update_one({"_id": unique_id}, {"$set": data}, upsert=True))
+        
         # Also track user
         if user_id:
             await self.db.users.update_one({"_id": user_id}, {"$set": {"last_active": int(time.time())}}, upsert=True)
-        print(f"DEBUG DB: Saved {unique_id} to MongoDB.")
+            self._run_backup(self.db2.users.update_one({"_id": user_id}, {"$set": {"last_active": int(time.time())}}, upsert=True))
+            
+        print(f"DEBUG DB: Saved {unique_id} to MongoDB (Mirrored).")
 
     async def get_link(self, unique_id):
         link = await self.col.find_one({"_id": unique_id})
@@ -89,6 +121,7 @@ class Database:
                 "trial_used": False
             }
             await self.db.users.insert_one(user)
+            self._run_backup(self.db2.users.insert_one(user))
         return user
 
     async def activate_trial(self, user_id, expiry_date: datetime.datetime):
@@ -101,6 +134,15 @@ class Database:
             }},
             upsert=True
         )
+        self._run_backup(self.db2.users.update_one(
+            {"_id": user_id},
+            {"$set": {
+                "plan": "trial",
+                "plan_expiry": expiry_date,
+                "trial_used": True
+            }},
+            upsert=True
+        ))
 
 
     async def update_user_usage(self, user_id, daily_count: int = None, date_str: str = None):
@@ -112,6 +154,7 @@ class Database:
             
         if update_data:
             await self.db.users.update_one({"_id": user_id}, {"$set": update_data})
+            self._run_backup(self.db2.users.update_one({"_id": user_id}, {"$set": update_data}))
 
     async def set_user_plan(self, user_id, plan_name, expiry_date: datetime.datetime):
         await self.db.users.update_one(
@@ -119,6 +162,11 @@ class Database:
             {"$set": {"plan": plan_name, "plan_expiry": expiry_date}},
             upsert=True
         )
+        self._run_backup(self.db2.users.update_one(
+            {"_id": user_id}, 
+            {"$set": {"plan": plan_name, "plan_expiry": expiry_date}},
+            upsert=True
+        ))
 
     async def get_user_links(self, user_id, limit=20):
         # Deprecated: use get_active_links for user facing apps
@@ -206,6 +254,7 @@ class Database:
         
     async def delete_link(self, unique_id):
         await self.col.delete_one({"_id": unique_id})
+        self._run_backup(self.col2.delete_one({"_id": unique_id}))
         
     async def count_links(self):
         return await self.col.count_documents({})
@@ -222,9 +271,11 @@ class Database:
 
     async def ban_user(self, user_id, reason="Admin Ban"):
         await self.db.banned.update_one({"_id": user_id}, {"$set": {"reason": reason}}, upsert=True)
+        self._run_backup(self.db2.banned.update_one({"_id": user_id}, {"$set": {"reason": reason}}, upsert=True))
 
     async def unban_user(self, user_id):
         await self.db.banned.delete_one({"_id": user_id})
+        self._run_backup(self.db2.banned.delete_one({"_id": user_id}))
 
     async def is_banned(self, user_id):
         return await self.db.banned.find_one({"_id": user_id}) is not None
@@ -243,7 +294,12 @@ class Database:
                 {"$set": {"data": Binary(data)}}, 
                 upsert=True
             )
-            print(f"✅ Session {session_name} backed up to MongoDB.")
+            self._run_backup(self.db2.sessions.update_one(
+                {"_id": session_name}, 
+                {"$set": {"data": Binary(data)}}, 
+                upsert=True
+            ))
+            print(f"✅ Session {session_name} backed up to MongoDB (Mirrored).")
         except Exception as e:
             print(f"Failed to backup session: {e}")
 

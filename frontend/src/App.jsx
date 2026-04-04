@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Show from './pages/Show';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
+import Landing from './pages/Landing';
 
 // Smart redirect: /show → last stream or 404
 function ShowRedirect() {
@@ -22,6 +23,7 @@ function Layout({ children }) {
     return saved !== null ? saved === 'dark' : true;
   });
   const location = useLocation();
+  const isLanding = location.pathname === '/';
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', isDark);
@@ -52,8 +54,9 @@ function Layout({ children }) {
     <div className="min-h-screen flex w-full flex-col md:flex-row font-sans selection:bg-indigo-500/30">
 
       {/* LAPTOP SIDEBAR */}
-      <aside className="hidden md:flex flex-col w-64 border-r border-[color:var(--border-color)] bg-[color:var(--surface-color)] fixed h-full z-50">
-        <div className="p-6 flex items-center gap-3">
+      {!isLanding && (
+        <aside className="hidden md:flex flex-col w-64 border-r border-[color:var(--border-color)] bg-[color:var(--surface-color)] fixed h-full z-50">
+          <div className="p-6 flex items-center gap-3">
           <img src={logoImg} alt="StreamDrop" className="w-8 h-8 rounded-xl object-cover shadow-lg" />
           <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500">StreamDrop</h1>
         </div>
@@ -83,20 +86,23 @@ function Layout({ children }) {
           </button>
         </div>
       </aside>
+      )}
 
       {/* MOBILE HEADER */}
-      <header className="md:hidden flex items-center justify-between p-4 border-b border-[color:var(--border-color)] bg-[color:var(--surface-color)] sticky top-0 z-40 backdrop-blur-md bg-opacity-80">
-        <div className="flex items-center gap-2">
-          <img src={logoImg} alt="StreamDrop" className="w-7 h-7 rounded-lg object-cover shadow-md" />
-          <h1 className="text-lg font-bold">StreamDrop</h1>
-        </div>
-        <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full bg-[color:var(--bg-color)] text-[color:var(--text-color)]">
-          {isDark ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
-      </header>
+      {!isLanding && (
+        <header className="md:hidden flex items-center justify-between p-4 border-b border-[color:var(--border-color)] bg-[color:var(--surface-color)] sticky top-0 z-40 backdrop-blur-md bg-opacity-80">
+          <div className="flex items-center gap-2">
+            <img src={logoImg} alt="StreamDrop" className="w-7 h-7 rounded-lg object-cover shadow-md" />
+            <h1 className="text-lg font-bold">StreamDrop</h1>
+          </div>
+          <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full bg-[color:var(--bg-color)] text-[color:var(--text-color)]">
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </header>
+      )}
 
       {/* MAIN */}
-      <main className="flex-1 md:ml-64 w-full h-[100dvh] md:h-screen overflow-y-auto overflow-x-hidden relative pb-24 md:pb-0 scroll-smooth">
+      <main className={`flex-1 ${!isLanding ? 'md:ml-64' : ''} w-full h-[100dvh] md:h-screen overflow-y-auto overflow-x-hidden relative pb-24 md:pb-0 scroll-smooth`}>
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}
@@ -111,7 +117,8 @@ function Layout({ children }) {
       </main>
 
       {/* MOBILE BOTTOM NAV */}
-      <div className="md:hidden fixed bottom-0 left-0 w-full z-50">
+      {!isLanding && (
+        <div className="md:hidden fixed bottom-0 left-0 w-full z-50">
         <div className="bg-[color:var(--surface-color)]/80 backdrop-blur-xl border-t border-[color:var(--border-color)] px-6 py-3 pb-6 flex justify-between items-center rounded-t-3xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)]">
           {navLinks.map((link) => {
             const isActive = location.pathname.startsWith(link.match);
@@ -128,6 +135,7 @@ function Layout({ children }) {
           })}
         </div>
       </div>
+      )}
     </div>
   );
 }
@@ -137,6 +145,7 @@ function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
+          <Route path="/"                  element={<Landing />} />
           <Route path="/dashboard/:userId" element={<Dashboard />} />
           <Route path="/show/:uniqueId"    element={<Show />} />
           <Route path="/show"              element={<ShowRedirect />} />
