@@ -1,7 +1,8 @@
 import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { Home, PlaySquare, Moon, Sun, User, Settings, ShieldAlert } from 'lucide-react';
+import { Home, PlaySquare, Moon, Sun, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import logoImg from './assets/logo.jpg';
 
 // Pages placeholders (will split to real components later)
 import Dashboard from './pages/Dashboard';
@@ -34,9 +35,7 @@ function Layout({ children }) {
       {/* LAPTOP SIDEBAR */}
       <aside className="hidden md:flex flex-col w-64 border-r border-[color:var(--border-color)] bg-[color:var(--surface-color)] fixed h-full z-50">
         <div className="p-6 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-indigo-500/30">
-            S
-          </div>
+          <img src={logoImg} alt="StreamDrop" className="w-8 h-8 rounded-xl object-cover shadow-lg" />
           <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500">StreamDrop</h1>
         </div>
         
@@ -74,9 +73,7 @@ function Layout({ children }) {
       {/* MOBILE HEADER */}
       <header className="md:hidden flex items-center justify-between p-4 border-b border-[color:var(--border-color)] bg-[color:var(--surface-color)] sticky top-0 z-40 backdrop-blur-md bg-opacity-80">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
-            S
-          </div>
+          <img src={logoImg} alt="StreamDrop" className="w-7 h-7 rounded-lg object-cover shadow-md" />
           <h1 className="text-lg font-bold">StreamDrop</h1>
         </div>
         <button onClick={() => setIsDark(!isDark)} className="p-2 rounded-full bg-[color:var(--bg-color)] text-[color:var(--text-color)]">

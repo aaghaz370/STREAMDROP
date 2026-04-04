@@ -18,15 +18,18 @@ import xplayerLogo from '../assets/player-logo/x-player.png';
 import novaLogo from '../assets/player-logo/nova-player.png';
 import nextLogo from '../assets/player-logo/next-player.png';
 import kmLogo from '../assets/player-logo/km-player.png';
+import logoImg from '../assets/logo.jpg';
 
-const AUDIO_EXT  = /\.(mp3|aac|wav|flac|m4a|ogg|opus)$/i;
-const IMAGE_EXT  = /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i;
-const PDF_EXT    = /\.(pdf|doc|docx|txt|rtf)$/i;
+const AUDIO_EXT  = /\.(mp3|aac|wav|flac|m4a|ogg|opus|wma|aiff|alac)$/i;
+const IMAGE_EXT  = /\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff|ico|heic|avif)$/i;
+const PDF_EXT    = /\.(pdf|doc|docx|txt|rtf|odt|xls|xlsx|ppt|pptx|csv|md)$/i;
+const BINARY_EXT = /\.(apk|ipa|exe|msi|dmg|zip|rar|7z|tar|gz|jar|deb|rpm|iso|img|bin|torrent|sh|bat|cmd|dll|so|dylib)$/i;
 
 function classify(name = '') {
   if (AUDIO_EXT.test(name)) return 'audio';
   if (IMAGE_EXT.test(name)) return 'image';
   if (PDF_EXT.test(name))   return 'document';
+  if (BINARY_EXT.test(name)) return 'binary';
   return 'video';
 }
 
@@ -35,6 +38,7 @@ const THEMES = {
   audio: { bg: 'bg-violet-500', text: 'text-violet-500', border: 'border-violet-500/30' },
   image: { bg: 'bg-amber-500', text: 'text-amber-500', border: 'border-amber-500/30' },
   document: { bg: 'bg-emerald-500', text: 'text-emerald-500', border: 'border-emerald-500/30' },
+  binary: { bg: 'bg-sky-500', text: 'text-sky-500', border: 'border-sky-500/30' },
 };
 
 export default function Show() {
@@ -303,9 +307,7 @@ export default function Show() {
       {/* Header */}
       <header className="flex items-center justify-between px-4 py-4 md:px-8 border-b border-[color:var(--border-color)] bg-[color:var(--surface-color)] sticky top-0 z-30">
           <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-lg ${theme.bg} text-white flex items-center justify-center font-bold shadow-md`}>
-                  <Play size={16} fill="currentColor" />
-              </div>
+              <img src={logoImg} alt="StreamDrop" className="w-9 h-9 rounded-lg object-cover shadow-md" />
               <div>
                   <h1 className="font-bold text-lg leading-tight">StreamDrop</h1>
                   <span className={`text-[10px] font-bold uppercase tracking-wider ${theme.text}`}>Premium Delivery</span>
@@ -323,8 +325,12 @@ export default function Show() {
           <div className="flex flex-col flex-1 min-w-0">
               
               {/* ==== Media Viewers ==== */}
-              <div className={`w-full rounded-2xl overflow-hidden shadow-lg bg-black border border-[color:var(--border-color)] relative ${type === 'video' ? 'aspect-video min-h-[250px] md:min-h-[400px]' : (type === 'audio' ? 'py-20' : (type === 'document' ? 'h-[75vh] bg-white' : 'p-6'))}`}>
-                  
+              <div className={`w-full rounded-2xl overflow-hidden shadow-lg bg-black border border-[color:var(--border-color)] relative ${
+                type === 'video' ? 'aspect-video min-h-[250px] md:min-h-[400px]' : 
+                (type === 'audio' ? 'py-20 bg-[color:var(--surface-color)]' : 
+                (type === 'document' ? 'h-[75vh] bg-white' : 
+                (type === 'image' || type === 'binary' ? 'p-6 bg-[color:var(--surface-color)]' : 'p-6')))
+              }`}>    
                   {type === 'video' && (
                       <video ref={videoRef} playsInline preload="auto" className="w-full h-full absolute inset-0 object-contain">
                           <source src={data.direct_dl_link} />
@@ -352,6 +358,22 @@ export default function Show() {
 
                   {type === 'image' && (
                       <img src={data.direct_dl_link} alt={data.file_name} className="max-w-full max-h-[70vh] object-contain mx-auto rounded" />
+                  )}
+
+                  {/* ==== BINARY / APK / ARCHIVE ==== */}
+                  {type === 'binary' && (
+                      <div className="w-full h-full flex flex-col items-center justify-center py-16 px-8 text-center">
+                          <div className="w-24 h-24 rounded-3xl bg-sky-500/10 border-2 border-sky-500/30 flex items-center justify-center mb-6">
+                              <Download size={40} className="text-sky-500" />
+                          </div>
+                          <h3 className="text-xl font-bold text-[color:var(--text-color)] mb-2">{data.file_name}</h3>
+                          <p className="text-[color:var(--text-muted)] text-sm mb-2">This is a binary/application file.</p>
+                          <p className="text-[color:var(--text-muted)] text-xs mb-8">{data.file_size} · Cannot be previewed in the browser</p>
+                          <a href={`${data.direct_dl_link}?download=true`} download
+                             className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white bg-sky-500 hover:brightness-110 shadow-lg transition">
+                              <Download size={20} /> Download File
+                          </a>
+                      </div>
                   )}
 
                   {/* Video overlays */}

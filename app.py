@@ -1168,33 +1168,39 @@ async def get_file_details_api(request: Request, unique_id: str):
     
     # Inject admin dashboard link using HMAC token
     user_id_from_db = link_data.get("user_id", 0)
-    if user_id_from_db == Config.OWNER_ID:
-        import hmac, hashlib
-        secret = Config.BOT_TOKEN.encode()
-        tok = hmac.new(secret, str(Config.OWNER_ID).encode(), hashlib.sha256).hexdigest()
-        response_data["dashboard_link"] = f"{base_url}/dashboard/{Config.OWNER_ID}?token={tok}"
+    try:
+        if user_id_from_db == Config.OWNER_ID:
+            import hmac, hashlib
+            secret = Config.BOT_TOKEN.encode()
+            tok = hmac.new(secret, str(Config.OWNER_ID).encode(), hashlib.sha256).hexdigest()
+            response_data["dashboard_link"] = f"{base_url}/dashboard/{Config.OWNER_ID}?token={tok}"
+    except Exception as e:
+        print(f"WARNING: Failed to generate owner dashboard link: {e}")
     
-    # Fetch other active links from this user to build a Next/Queue UI in show.html
+    # Fetch other active links from this user to build a playlist sidebar
     user_files = []
-    if user_id_from_db:
-        # Get up to 30 other active links for the playlist sidebar
-        others = await db.get_user_active_links(user_id_from_db, limit=30)
-        for doc in others:
-            if str(doc["_id"]) == str(unique_id):
-                continue
-            fname = doc.get("file_name", "Unknown")
-            mt, _ = mimetypes.guess_type(fname)
-            user_files.append({
-                "id": str(doc["_id"]),
-                "name": fname,
-                "size": doc.get("file_size", ""),
-                "stream_link": f"{base_url}/show/{doc['_id']}?admin=true" if user_id_from_db == Config.OWNER_ID else f"{base_url}/show/{doc['_id']}",
-                "type": ("audio" if mt and mt.startswith("audio") else ("video" if mt and mt.startswith("video") else "file"))
-            })
-    
+    try:
+        if user_id_from_db:
+            others = await db.get_user_active_links(user_id_from_db, limit=30)
+            for doc in others:
+                if str(doc["_id"]) == str(unique_id):
+                    continue
+                fname = doc.get("file_name", "Unknown")
+                mt, _ = mimetypes.guess_type(fname)
+                user_files.append({
+                    "id": str(doc["_id"]),
+                    "name": fname,
+                    "size": doc.get("file_size", ""),
+                    "stream_link": f"{base_url}/show/{doc['_id']}",
+                    "type": ("audio" if mt and mt.startswith("audio") else ("video" if mt and mt.startswith("video") else "file"))
+                })
+    except Exception as e:
+        print(f"WARNING: Failed to fetch user_files for queue: {e}")
+        user_files = []
     response_data["user_files"] = user_files
 
     return response_data
+
 
 # In-memory cache for Telegram file metadata — avoids expensive API calls on every seek
 _file_meta_cache = {}
