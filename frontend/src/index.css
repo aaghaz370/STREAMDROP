@@ -85,3 +85,10 @@
   --plyr-audio-control-color-hover: var(--text-color);
 }
 
+/* Mobile Overrides - Maximize timeline by hiding volume */
+@media (max-width: 768px) {
+  .plyr__controls .plyr__volume {
+    display: none !important;
+  }
+}
+
