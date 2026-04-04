@@ -85,10 +85,23 @@ class Database:
                 "plan": "free",
                 "plan_expiry": None,
                 "daily_count": 0,
-                "last_usage_date": datetime.date.today().isoformat()
+                "last_usage_date": datetime.date.today().isoformat(),
+                "trial_used": False
             }
             await self.db.users.insert_one(user)
         return user
+
+    async def activate_trial(self, user_id, expiry_date: datetime.datetime):
+        await self.db.users.update_one(
+            {"_id": user_id},
+            {"$set": {
+                "plan": "trial",
+                "plan_expiry": expiry_date,
+                "trial_used": True
+            }},
+            upsert=True
+        )
+
 
     async def update_user_usage(self, user_id, daily_count: int = None, date_str: str = None):
         update_data = {}

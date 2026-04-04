@@ -11,46 +11,46 @@ import logoImg from '../assets/logo.jpg';
 
 // ─── COMMANDS DATA ────────────────────────────────────────────
 const COMMANDS = [
-  { cmd: '/start',    desc: 'Start the bot & see welcome message', icon: <Zap size={16}/> },
-  { cmd: '/my_links', desc: 'View your 5 most recent file links', icon: <Film size={16}/> },
-  { cmd: '/plan',     desc: 'Check your current subscription plan & limits', icon: <Crown size={16}/> },
-  { cmd: '/help',     desc: 'Show all commands and quick guide', icon: <BookOpen size={16}/> },
-  { cmd: 'Send File', desc: 'Send any file/video/photo to get a stream link instantly', icon: <Share2 size={16}/> },
+  { cmd: '/start', desc: 'Start the bot & see welcome message', icon: <Zap size={16} /> },
+  { cmd: '/my_links', desc: 'View your 5 most recent file links', icon: <Film size={16} /> },
+  { cmd: '/plan', desc: 'Check your current subscription plan & limits', icon: <Crown size={16} /> },
+  { cmd: '/help', desc: 'Show all commands and quick guide', icon: <BookOpen size={16} /> },
+  { cmd: 'Send File', desc: 'Send any file/video/photo to get a stream link instantly', icon: <Share2 size={16} /> },
 ];
 
 // ─── PLANS DATA ───────────────────────────────────────────────
 const PLANS = [
-  { name: 'Free',      color: 'from-gray-500 to-gray-600',    limit: '5/day',        expiry: '24 Hours',   price: 'Free' },
-  { name: 'Weekly',    color: 'from-blue-500 to-blue-600',    limit: 'Unlimited',    expiry: '6 Months',   price: '₹49' },
-  { name: 'Monthly',   color: 'from-indigo-500 to-violet-600',limit: 'Unlimited',    expiry: '8 Months',   price: '₹99' },
-  { name: 'BiMonthly', color: 'from-purple-500 to-pink-600',  limit: 'Unlimited',    expiry: '1 Year',     price: '₹149' },
-  { name: 'Lifetime',  color: 'from-amber-400 to-orange-500', limit: 'Unlimited',    expiry: 'Never',      price: '₹499' },
+  { name: 'Free', color: 'from-gray-500 to-gray-600', limit: '5/day', expiry: '24 Hours', price: 'Free' },
+  { name: 'Weekly', color: 'from-blue-500 to-blue-600', limit: 'Unlimited', expiry: '6 Months', price: '₹49' },
+  { name: 'Monthly', color: 'from-indigo-500 to-violet-600', limit: 'Unlimited', expiry: '8 Months', price: '₹99' },
+  { name: 'BiMonthly', color: 'from-purple-500 to-pink-600', limit: 'Unlimited', expiry: '1 Year', price: '₹149' },
+  { name: 'Lifetime', color: 'from-amber-400 to-orange-500', limit: 'Unlimited', expiry: 'Never', price: '₹499' },
 ];
 
 // ─── FEATURES DATA ────────────────────────────────────────────
 const FEATURES = [
-  { icon: <MonitorPlay size={20}/>,     title: 'Browser Streaming',        desc: 'Play videos/audio directly in any browser — no app needed', color: 'text-indigo-500' },
-  { icon: <Smartphone size={20}/>,      title: 'Mobile App Intents',       desc: 'Open in VLC, MX Player, PlayIt or any Android player', color: 'text-violet-500' },
-  { icon: <Download size={20}/>,        title: '1-Click Download',         desc: 'Download any file instantly with one tap', color: 'text-emerald-500' },
-  { icon: <QrCode size={20}/>,          title: 'QR Code Sharing',          desc: 'Generate & save QR codes for any file link', color: 'text-amber-500' },
-  { icon: <PictureInPicture size={20}/>,title: 'Picture-in-Picture',       desc: 'Float the player while using other apps', color: 'text-pink-500' },
-  { icon: <Theater size={20}/>,         title: 'Theatre Mode',             desc: 'Distraction-free full-width player mode', color: 'text-sky-500' },
-  { icon: <Bookmark size={20}/>,        title: 'Mark Spots',               desc: 'Bookmark timestamps to jump back to key moments', color: 'text-rose-500' },
-  { icon: <Clock size={20}/>,           title: 'Sleep Timer',              desc: 'Auto-pause after 15, 30, 60 or 90 minutes', color: 'text-teal-500' },
-  { icon: <Keyboard size={20}/>,        title: 'Keyboard Shortcuts',       desc: 'Space/Arrow keys, F for fullscreen, M for mute', color: 'text-cyan-500' },
-  { icon: <Shield size={20}/>,          title: 'Secure HMAC Auth',         desc: 'Cryptographically signed dashboard access tokens', color: 'text-green-500' },
-  { icon: <Film size={20}/>,            title: 'Video Streaming',          desc: 'Smooth HLS-like range-request streaming from Telegram', color: 'text-blue-500' },
-  { icon: <Music size={20}/>,           title: 'Audio Player',             desc: 'Dedicated audio UI with waveform visualization', color: 'text-purple-500' },
-  { icon: <ImageIcon size={20}/>,       title: 'Image Viewer',             desc: 'Full-screen image preview for photos', color: 'text-amber-400' },
-  { icon: <FileText size={20}/>,        title: 'Document Preview',         desc: 'View PDFs and docs directly in the browser', color: 'text-emerald-400' },
-  { icon: <Package size={20}/>,         title: 'APK / File Downloads',     desc: 'Any binary/archive shown with direct download UI', color: 'text-sky-400' },
-  { icon: <BarChart3 size={20}/>,       title: 'Smart Dashboard',          desc: 'Filter, sort, search all your files with advanced controls', color: 'text-indigo-400' },
-  { icon: <Share2 size={20}/>,          title: 'Link Sharing',             desc: 'Native share sheet integration on mobile browsers', color: 'text-rose-400' },
-  { icon: <Moon size={20}/>,            title: 'Day / Night Mode',         desc: 'System-aware theme with manual toggle', color: 'text-violet-400' },
-  { icon: <HardDrive size={20}/>,       title: 'Cloud Library',            desc: 'All your files in a filterable sidebar playlist', color: 'text-teal-400' },
-  { icon: <Activity size={20}/>,        title: 'Stream Persistence',       desc: 'Last-played link auto-restored on revisit', color: 'text-green-400' },
-  { icon: <Globe size={20}/>,           title: 'Embed Support',            desc: 'Embed any stream as an <iframe> on any website', color: 'text-blue-400' },
-  { icon: <Zap size={20}/>,            title: 'Instant Links',            desc: 'Get your stream URL in seconds — just send a file', color: 'text-yellow-500' },
+  { icon: <MonitorPlay size={20} />, title: 'Browser Streaming', desc: 'Play videos/audio directly in any browser — no app needed', color: 'text-indigo-500' },
+  { icon: <Smartphone size={20} />, title: 'Mobile App Intents', desc: 'Open in VLC, MX Player, PlayIt or any Android player', color: 'text-violet-500' },
+  { icon: <Download size={20} />, title: '1-Click Download', desc: 'Download any file instantly with one tap', color: 'text-emerald-500' },
+  { icon: <QrCode size={20} />, title: 'QR Code Sharing', desc: 'Generate & save QR codes for any file link', color: 'text-amber-500' },
+  { icon: <PictureInPicture size={20} />, title: 'Picture-in-Picture', desc: 'Float the player while using other apps', color: 'text-pink-500' },
+  { icon: <Theater size={20} />, title: 'Theatre Mode', desc: 'Distraction-free full-width player mode', color: 'text-sky-500' },
+  { icon: <Bookmark size={20} />, title: 'Mark Spots', desc: 'Bookmark timestamps to jump back to key moments', color: 'text-rose-500' },
+  { icon: <Clock size={20} />, title: 'Sleep Timer', desc: 'Auto-pause after 15, 30, 60 or 90 minutes', color: 'text-teal-500' },
+  { icon: <Keyboard size={20} />, title: 'Keyboard Shortcuts', desc: 'Space/Arrow keys, F for fullscreen, M for mute', color: 'text-cyan-500' },
+  { icon: <Shield size={20} />, title: 'Secure HMAC Auth', desc: 'Cryptographically signed dashboard access tokens', color: 'text-green-500' },
+  { icon: <Film size={20} />, title: 'Video Streaming', desc: 'Smooth HLS-like range-request streaming from Telegram', color: 'text-blue-500' },
+  { icon: <Music size={20} />, title: 'Audio Player', desc: 'Dedicated audio UI with waveform visualization', color: 'text-purple-500' },
+  { icon: <ImageIcon size={20} />, title: 'Image Viewer', desc: 'Full-screen image preview for photos', color: 'text-amber-400' },
+  { icon: <FileText size={20} />, title: 'Document Preview', desc: 'View PDFs and docs directly in the browser', color: 'text-emerald-400' },
+  { icon: <Package size={20} />, title: 'APK / File Downloads', desc: 'Any binary/archive shown with direct download UI', color: 'text-sky-400' },
+  { icon: <BarChart3 size={20} />, title: 'Smart Dashboard', desc: 'Filter, sort, search all your files with advanced controls', color: 'text-indigo-400' },
+  { icon: <Share2 size={20} />, title: 'Link Sharing', desc: 'Native share sheet integration on mobile browsers', color: 'text-rose-400' },
+  { icon: <Moon size={20} />, title: 'Day / Night Mode', desc: 'System-aware theme with manual toggle', color: 'text-violet-400' },
+  { icon: <HardDrive size={20} />, title: 'Cloud Library', desc: 'All your files in a filterable sidebar playlist', color: 'text-teal-400' },
+  { icon: <Activity size={20} />, title: 'Stream Persistence', desc: 'Last-played link auto-restored on revisit', color: 'text-green-400' },
+  { icon: <Globe size={20} />, title: 'Embed Support', desc: 'Embed any stream as an <iframe> on any website', color: 'text-blue-400' },
+  { icon: <Zap size={20} />, title: 'Instant Links', desc: 'Get your stream URL in seconds — just send a file', color: 'text-yellow-500' },
 ];
 
 // ─── STAT CARD ────────────────────────────────────────────────
@@ -77,14 +77,14 @@ export default function Profile() {
     try {
       const s = JSON.parse(localStorage.getItem('streamdrop_stats') || 'null');
       setStats(s);
-    } catch {}
+    } catch { }
   }, []);
 
   const tabs = [
-    { key: 'features', label: 'Features',  icon: <Sparkles size={15}/> },
-    { key: 'commands', label: 'Commands',  icon: <Terminal size={15}/> },
-    { key: 'plans',    label: 'Plans',     icon: <Crown size={15}/> },
-    { key: 'about',    label: 'About',     icon: <Info size={15}/> },
+    { key: 'features', label: 'Features', icon: <Sparkles size={15} /> },
+    { key: 'commands', label: 'Commands', icon: <Terminal size={15} /> },
+    { key: 'plans', label: 'Plans', icon: <Crown size={15} /> },
+    { key: 'about', label: 'About', icon: <Info size={15} /> },
   ];
 
   return (
@@ -110,11 +110,11 @@ export default function Profile() {
             <div className="flex flex-wrap gap-3 mt-4">
               <a href="https://univora.site" target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-bold transition border border-white/20">
-                <Globe size={14}/> univora.site <ExternalLink size={12}/>
+                <Globe size={14} /> univora.site <ExternalLink size={12} />
               </a>
               <a href="https://t.me/RolexSir_8" target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-sm font-bold transition border border-white/20">
-                <User size={14}/> @RolexSir_8
+                <User size={14} /> @RolexSir_8
               </a>
             </div>
           </div>
@@ -124,10 +124,10 @@ export default function Profile() {
       {/* ── Stats ── */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <StatCard label="Total Files" value={stats.total || 0} icon={<HardDrive size={20}/>} color="text-indigo-500 bg-indigo-500" />
-          <StatCard label="Active"      value={stats.active || 0} icon={<Activity size={20}/>}  color="text-green-500 bg-green-500" />
-          <StatCard label="Expired"     value={stats.expired || 0} icon={<Clock size={20}/>}   color="text-red-500 bg-red-500" />
-          <StatCard label="Features"    value="22+"  icon={<Star size={20}/>}    color="text-amber-500 bg-amber-500" />
+          <StatCard label="Total Files" value={stats.total || 0} icon={<HardDrive size={20} />} color="text-indigo-500 bg-indigo-500" />
+          <StatCard label="Active" value={stats.active || 0} icon={<Activity size={20} />} color="text-green-500 bg-green-500" />
+          <StatCard label="Expired" value={stats.expired || 0} icon={<Clock size={20} />} color="text-red-500 bg-red-500" />
+          <StatCard label="Features" value="22+" icon={<Star size={20} />} color="text-amber-500 bg-amber-500" />
         </div>
       )}
 
@@ -135,11 +135,10 @@ export default function Profile() {
       <div className="flex items-center gap-2 flex-wrap mb-6">
         {tabs.map(t => (
           <button key={t.key} onClick={() => setActiveTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${
-              activeTab === t.key
-              ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
-              : 'bg-[color:var(--surface-color)] text-[color:var(--text-muted)] hover:text-[color:var(--text-color)] border border-[color:var(--border-color)]'
-            }`}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeTab === t.key
+                ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
+                : 'bg-[color:var(--surface-color)] text-[color:var(--text-muted)] hover:text-[color:var(--text-color)] border border-[color:var(--border-color)]'
+              }`}>
             {t.icon} {t.label}
           </button>
         ))}
@@ -182,7 +181,7 @@ export default function Profile() {
 
           {/* How to use */}
           <div className="mt-6 p-5 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 border border-indigo-500/20 rounded-2xl">
-            <h3 className="font-bold text-[color:var(--text-color)] mb-3 flex items-center gap-2"><BookOpen size={16} className="text-indigo-500"/> How to Use</h3>
+            <h3 className="font-bold text-[color:var(--text-color)] mb-3 flex items-center gap-2"><BookOpen size={16} className="text-indigo-500" /> How to Use</h3>
             <ol className="space-y-2">
               {[
                 '1. Start the bot with /start',
@@ -207,32 +206,56 @@ export default function Profile() {
         <div className="space-y-4">
           <p className="text-[color:var(--text-muted)] text-sm mb-5 font-medium">Upgrade for unlimited streaming, longer links & more.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {PLANS.map((p, i) => (
-              <div key={i} className={`relative rounded-2xl border overflow-hidden ${i === 4 ? 'border-amber-500/30' : 'border-[color:var(--border-color)]'} bg-[color:var(--surface-color)]`}>
-                <div className={`h-1.5 bg-gradient-to-r ${p.color}`} />
-                <div className="p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className={`font-black text-base bg-gradient-to-r ${p.color} bg-clip-text text-transparent`}>{p.name}</span>
-                    <span className="text-2xl font-extrabold text-[color:var(--text-color)]">{p.price}</span>
+            {PLANS.map((p, i) => {
+              // Trial Logic
+              let showBtn = false, btnText = '', btnColor = '', btnDisabled = false;
+              if (p.isTrial && userProfile) {
+                if (userProfile.plan_info?.plan_type === 'trial') {
+                  showBtn = true; btnText = 'Active Trial'; btnColor = 'bg-teal-500/20 text-teal-400'; btnDisabled = true;
+                } else if (userProfile.trial_used) {
+                  showBtn = true; btnText = 'Trial Consumed'; btnColor = 'bg-gray-500/20 text-gray-400'; btnDisabled = true;
+                } else if (userProfile.plan_info?.plan_type === 'free') {
+                  showBtn = true; btnText = activating ? 'Activating...' : 'Start 7-Day Free Trial'; btnColor = 'bg-emerald-500 hover:bg-emerald-400 text-white'; btnDisabled = activating;
+                }
+              }
+
+              return (
+                <div key={i} className={`relative flex flex-col rounded-2xl border overflow-hidden ${p.name === 'Lifetime' ? 'border-amber-500/30' : 'border-[color:var(--border-color)]'} bg-[color:var(--surface-color)]`}>
+                  <div className={`h-1.5 shrink-0 bg-gradient-to-r ${p.color}`} />
+                  <div className="p-5 flex-1 flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className={`font-black text-base bg-gradient-to-r ${p.color} bg-clip-text text-transparent`}>{p.name}</span>
+                      <span className="text-2xl font-extrabold text-[color:var(--text-color)]">{p.price}</span>
+                    </div>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-[color:var(--text-muted)]">Daily Uploads</span>
+                        <span className="font-bold text-[color:var(--text-color)]">{p.limit}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-[color:var(--text-muted)]">Link Expiry</span>
+                        <span className="font-bold text-[color:var(--text-color)]">{p.expiry}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-auto pt-2">
+                      {showBtn && (
+                        <button onClick={!btnDisabled ? activateTrial : undefined} disabled={btnDisabled}
+                          className={`w-full py-2 rounded-xl text-sm font-bold transition-all ${btnColor}`}>
+                          {btnText}
+                        </button>
+                      )}
+                      
+                      {p.name === 'Lifetime' && !showBtn && (
+                        <div className="flex items-center gap-1 text-amber-500 text-xs font-bold justify-center py-2">
+                          <Crown size={12}/> Best Value
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[color:var(--text-muted)]">Daily Uploads</span>
-                      <span className="font-bold text-[color:var(--text-color)]">{p.limit}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[color:var(--text-muted)]">Link Expiry</span>
-                      <span className="font-bold text-[color:var(--text-color)]">{p.expiry}</span>
-                    </div>
-                  </div>
-                  {i === 4 && (
-                    <div className="mt-3 flex items-center gap-1 text-amber-500 text-xs font-bold">
-                      <Crown size={12}/> Best Value
-                    </div>
-                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
           <p className="text-xs text-[color:var(--text-muted)] mt-4 text-center">
             Contact <a href="https://t.me/RolexSir_8" className="text-indigo-400 hover:underline font-semibold">@RolexSir_8</a> on Telegram to upgrade your plan.
@@ -252,8 +275,8 @@ export default function Profile() {
               </div>
             </div>
             <p className="text-sm text-[color:var(--text-muted)] leading-relaxed mb-4">
-              StreamDrop is the premium file streaming platform by <strong className="text-[color:var(--text-color)]">Univora</strong>. 
-              Built on top of Telegram's secure cloud infrastructure, it turns any file into an instantly streamable, 
+              StreamDrop is the premium file streaming platform by <strong className="text-[color:var(--text-color)]">Univora</strong>.
+              Built on top of Telegram's secure cloud infrastructure, it turns any file into an instantly streamable,
               shareable link — accessible on any device, anywhere in the world.
             </p>
             <div className="grid grid-cols-2 gap-3">
@@ -261,9 +284,9 @@ export default function Profile() {
                 { label: 'Platform', value: 'Univora' },
                 { label: 'Developer', value: 'Rolex Sir' },
                 { label: 'Backend', value: 'FastAPI + MongoDB' },
-                { label: 'Storage', value: 'Telegram Cloud' },
+                { label: 'Storage', value: 'Cloud Storage' },
                 { label: 'Frontend', value: 'React + Tailwind' },
-                { label: 'Hosting', value: 'Render.com' },
+                { label: 'Hosting', value: 'Vps' },
               ].map((item, i) => (
                 <div key={i} className="p-3 bg-[color:var(--bg-color)] rounded-xl border border-[color:var(--border-color)]">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-[color:var(--text-muted)]">{item.label}</p>
@@ -275,12 +298,12 @@ export default function Profile() {
 
           <div className="p-5 bg-gradient-to-br from-indigo-500/5 to-violet-500/5 border border-indigo-500/20 rounded-2xl flex items-center justify-between flex-wrap gap-4">
             <div>
-              <p className="font-bold text-[color:var(--text-color)]">Made with <Heart size={14} className="inline text-red-500"/> by Rolex Sir</p>
+              <p className="font-bold text-[color:var(--text-color)]">Made with <Heart size={14} className="inline text-red-500" /> by Rolex Sir</p>
               <p className="text-xs text-[color:var(--text-muted)] mt-0.5">Powered by Univora · All rights reserved</p>
             </div>
             <a href="https://univora.site" target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-500 text-white text-sm font-bold hover:brightness-110 transition">
-              <Globe size={14}/> Visit Univora
+              <Globe size={14} /> Visit Univora
             </a>
           </div>
         </div>

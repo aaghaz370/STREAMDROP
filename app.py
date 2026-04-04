@@ -1135,8 +1135,57 @@ async def dashboard_api(request: Request, user_id: int, token: str):
     return {"links": formatted, "total": len(formatted)}
 
 
+@app.get("/api/profile/{user_id}", response_class=JSONResponse)
+async def get_profile_api(request: Request, user_id: int, token: str):
+    import hmac as _hmac, hashlib
+    try:
+        secret = Config.BOT_TOKEN.encode()
+        expected = _hmac.new(secret, str(user_id).encode(), hashlib.sha256).hexdigest()
+        if not _hmac.compare_digest(token, expected):
+            raise HTTPException(status_code=403, detail="Invalid Token.")
+    except Exception:
+        raise HTTPException(status_code=403, detail="Token validation failed.")
+
+    user_data = await db.get_user_data(user_id)
+    from subscription import get_plan_status
+    plan_info = await get_plan_status(user_id)
+    
+    return {
+        "user_id": user_id,
+        "plan_info": plan_info,
+        "trial_used": user_data.get("trial_used", False)
+    }
 
 
+@app.post("/api/trial/activate/{user_id}", response_class=JSONResponse)
+async def activate_trial_api(request: Request, user_id: int, token: str):
+    import hmac as _hmac, hashlib, datetime
+    try:
+        secret = Config.BOT_TOKEN.encode()
+        expected = _hmac.new(secret, str(user_id).encode(), hashlib.sha256).hexdigest()
+        if not _hmac.compare_digest(token, expected):
+            raise HTTPException(status_code=403, detail="Invalid Token.")
+    except Exception:
+        raise HTTPException(status_code=403, detail="Token validation failed.")
+
+    user_data = await db.get_user_data(user_id)
+    
+    # Owners don't need trial
+    if user_id == Config.OWNER_ID:
+        raise HTTPException(status_code=400, detail="Owner already has unlimited access.")
+
+    if user_data.get("trial_used"):
+        raise HTTPException(status_code=400, detail="Trial already consumed.")
+        
+    current_plan = user_data.get("plan", "free")
+    if current_plan not in ("free", None) and current_plan != "trial":
+        raise HTTPException(status_code=400, detail="You already have an active premium plan.")
+
+    # Activate 7 days trial
+    expiry = datetime.datetime.now() + datetime.timedelta(days=7)
+    await db.activate_trial(user_id, expiry)
+    
+    return {"status": "success", "message": "7 Days Premium Trial Activated!"}
 @app.get("/api/file/{unique_id}", response_class=JSONResponse)
 async def get_file_details_api(request: Request, unique_id: str):
     # db.get_link_full directly returns data without Telegram API, preventing "Access Denied" on refresh due to FloodWaits
