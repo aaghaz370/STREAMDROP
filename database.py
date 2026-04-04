@@ -150,6 +150,23 @@ class Database:
             doc["is_expired"] = bool(expiry and expiry < now)
         return docs
 
+    async def get_all_links_legacy_admin(self):
+        """Fetch ALL docs with missing/zero user_id — these are admin's pre-tracking uploads."""
+        now = datetime.datetime.now()
+        query = {
+            "$or": [
+                {"user_id": {"$exists": False}},
+                {"user_id": None},
+                {"user_id": 0},
+            ]
+        }
+        cursor = self.col.find(query).sort("timestamp", -1)
+        docs = await cursor.to_list(length=500)
+        for doc in docs:
+            expiry = doc.get("expiry_date")
+            doc["is_expired"] = bool(expiry and expiry < now)
+        return docs
+
     async def get_all_links(self):
         cursor = self.col.find().sort("timestamp", -1)
         return await cursor.to_list(length=100) # Cap at 100 for safety

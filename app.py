@@ -1061,67 +1061,80 @@ async def health_check():
 
 @app.get("/api/dashboard/{user_id}", response_class=JSONResponse)
 async def dashboard_api(request: Request, user_id: int, token: str):
-    # 1. Validate Token (HMAC) — separate from data fetch so errors are distinct
-    import hmac, hashlib, mimetypes as _mt
-    secret = Config.BOT_TOKEN.encode()
-    msg = str(user_id).encode()
-    expected_token = hmac.new(secret, msg, hashlib.sha256).hexdigest()
-    
-    if not hmac.compare_digest(token, expected_token):
-        raise HTTPException(status_code=403, detail="Invalid Token. Please use the link from the bot.")
-    
-    # Save token to persistent store so same browser session doesn't need re-auth
-    # (handled client-side via localStorage on success)
-    
-    # 2. Fetch ALL User Links (active + expired)  
+    import hmac as _hmac, hashlib, mimetypes as _mt, traceback
+    from urllib.parse import quote as _quote
+
+    # 1. Validate Token (HMAC)
     try:
-        links = await db.get_all_user_links_with_status(user_id)
+        secret = Config.BOT_TOKEN.encode()
+        expected = _hmac.new(secret, str(user_id).encode(), hashlib.sha256).hexdigest()
+        if not _hmac.compare_digest(token, expected):
+            raise HTTPException(status_code=403, detail="Invalid Token.")
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"Dashboard DB Error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to load files from database.")
-    
-    # 3. Format Data for Frontend
+        print(f"DASHBOARD TOKEN ERROR: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=403, detail="Token validation failed.")
+
+    # 2. Fetch links — for admin/owner, also include legacy docs with user_id=0
+    try:
+        is_owner = (user_id == Config.OWNER_ID)
+        
+        links = await db.get_all_user_links_with_status(user_id)
+        
+        # If owner and no results found with their user_id, also pull legacy (user_id=0 or null) docs
+        if is_owner and not links:
+            print(f"INFO: Owner has 0 links with user_id={user_id}, fetching legacy docs.")
+            links = await db.get_all_links_legacy_admin()
+            
+    except Exception as e:
+        print(f"DASHBOARD DB ERROR: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"DB fetch failed: {str(e)[:200]}")
+
+    # 3. Format for frontend
     base = Config.BASE_URL.rstrip('/')
-    formatted_links = []
-    for link in links:
-        f_name = link.get("file_name", "Unknown")
-        f_size = link.get("file_size", "Unknown")
-        u_id   = link.get("_id")
-        ts     = link.get("timestamp", 0)
-        expiry = link.get("expiry_date")
-        is_expired = link.get("is_expired", False)
-        date_str = link.get("date_str", "Unknown")
-        
-        from urllib.parse import quote
-        enc_name = quote(f_name, safe='')
-        dl_link     = f"{base}/dl/{u_id}/{enc_name}"
-        stream_link = f"{base}/show/{u_id}"
-        
-        mime, _ = _mt.guess_type(f_name)
-        if mime and mime.startswith("video"):    media_type = "video"
-        elif mime and mime.startswith("audio"):  media_type = "audio"
-        elif mime and mime.startswith("image"):  media_type = "image"
-        elif mime in ("application/pdf",):       media_type = "document"
-        else:                                    media_type = "file"
-        
-        # File size in bytes for sorting (parse from human-readable)
-        size_bytes = link.get("file_size_bytes", 0)
-        
-        formatted_links.append({
-            "id":         str(u_id),
-            "name":       f_name,
-            "size":       f_size,
-            "size_bytes": size_bytes,
-            "date":       date_str,
-            "dl_link":    dl_link,
-            "stream_link": stream_link,
-            "timestamp":  ts,
-            "expiry":     expiry.strftime('%d %b %Y') if expiry else "Never",
-            "is_expired": is_expired,
-            "media_type": media_type,
-        })
-         
-    return {"links": formatted_links, "total": len(formatted_links)}
+    formatted = []
+    try:
+        for lnk in links:
+            f_name   = lnk.get("file_name") or "Unknown"
+            f_size   = lnk.get("file_size") or "Unknown"
+            u_id     = lnk.get("_id")
+            ts       = lnk.get("timestamp", 0)
+            expiry   = lnk.get("expiry_date")
+            expired  = lnk.get("is_expired", False)
+            date_str = lnk.get("date_str") or "Unknown"
+
+            enc = _quote(str(f_name), safe='')
+            dl   = f"{base}/dl/{u_id}/{enc}"
+            view = f"{base}/show/{u_id}"
+
+            mime, _ = _mt.guess_type(f_name)
+            if   mime and mime.startswith("video"):  mtype = "video"
+            elif mime and mime.startswith("audio"):  mtype = "audio"
+            elif mime and mime.startswith("image"):  mtype = "image"
+            elif mime == "application/pdf":          mtype = "document"
+            else:                                    mtype = "file"
+
+            formatted.append({
+                "id":         str(u_id),
+                "name":       f_name,
+                "size":       f_size,
+                "size_bytes": lnk.get("file_size_bytes", 0),
+                "date":       date_str,
+                "dl_link":    dl,
+                "stream_link": view,
+                "timestamp":  ts,
+                "expiry":     expiry.strftime('%d %b %Y') if expiry else "Never",
+                "is_expired": expired,
+                "media_type": mtype,
+            })
+    except Exception as e:
+        print(f"DASHBOARD FORMAT ERROR: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Format error: {str(e)[:200]}")
+
+    return {"links": formatted, "total": len(formatted)}
+
+
 
 
 @app.get("/api/file/{unique_id}", response_class=JSONResponse)
