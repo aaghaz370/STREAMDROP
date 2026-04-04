@@ -1200,54 +1200,63 @@ async def get_file_details_api(request: Request, unique_id: str):
         "dashboard_link": None  # will be set below if admin
     }
     
-    # --- Determine actual owner ---
-    # Admin links from the bot have ?admin=true appended.
-    # --- Determine actual owner ---
-    # Old uploads have user_id=0 in DB (before user tracking was added).
-    # All such docs belong to the admin since they were uploaded before any user could register.
-    user_id_from_db = link_data.get("user_id", 0) or 0
-
-    # If user_id is 0 AND Config.OWNER_ID is set → this is an admin legacy file
-    is_legacy_admin_file = (user_id_from_db == 0 and Config.OWNER_ID)
-    effective_user_id = Config.OWNER_ID if is_legacy_admin_file else user_id_from_db
-    is_owner = (effective_user_id == Config.OWNER_ID)
-
-    if is_legacy_admin_file:
-        print(f"INFO: Legacy file {unique_id} — resolved user_id 0 to OWNER_ID {Config.OWNER_ID}")
-
-    # Inject admin dashboard link using HMAC token
+    # --- Resolve user identity (crash-safe, type-safe) ---
+    raw_uid = link_data.get("user_id")
     try:
-        if is_owner and Config.OWNER_ID:
-            import hmac, hashlib
-            secret = Config.BOT_TOKEN.encode()
-            tok = hmac.new(secret, str(Config.OWNER_ID).encode(), hashlib.sha256).hexdigest()
-            response_data["dashboard_link"] = f"{base_url}/dashboard/{Config.OWNER_ID}?token={tok}"
-    except Exception as e:
-        print(f"WARNING: Failed to generate owner dashboard link: {e}")
+        stored_uid = int(raw_uid) if (raw_uid is not None and str(raw_uid).strip() not in ('', 'None', 'null')) else 0
+    except (ValueError, TypeError):
+        stored_uid = 0
 
-    # Fetch playlist sidebar files
+    owner_id = int(Config.OWNER_ID) if Config.OWNER_ID else 0
+    # File belongs to owner if user_id matches OWNER_ID, OR if user_id=0 (legacy pre-tracking upload)
+    is_owner_file = (owner_id != 0) and (stored_uid == owner_id or stored_uid == 0)
+
+    print(f"FILE_API DEBUG: uid={unique_id} raw_uid={raw_uid!r} stored={stored_uid} owner={owner_id} is_owner={is_owner_file}")
+
+    # Generate admin dashboard link
+    if is_owner_file and owner_id:
+        try:
+            import hmac as _hm, hashlib as _hl
+            _tok = _hm.new(Config.BOT_TOKEN.encode(), str(owner_id).encode(), _hl.sha256).hexdigest()
+            response_data["dashboard_link"] = f"{base_url}/dashboard/{owner_id}?token={_tok}"
+        except Exception as _e:
+            print(f"WARNING dashboard_link: {_e}")
+
+    # Fetch playlist sidebar — crash-safe, handles large collections
     user_files = []
     try:
-        if is_legacy_admin_file:
-            # Admin's legacy files — fetch all zero-user_id docs as the playlist
+        if is_owner_file:
+            # Fetch legacy (user_id=0) docs AND any newer files stored under owner_id
             others = await db.get_active_links_legacy_admin()
-        elif effective_user_id:
-            others = await db.get_user_active_links(effective_user_id, limit=100)
+            if owner_id:
+                try:
+                    extra = await db.get_user_active_links(owner_id, limit=200)
+                    seen = {str(d["_id"]) for d in others}
+                    for ex in extra:
+                        if str(ex["_id"]) not in seen:
+                            others.append(ex)
+                except Exception as _em:
+                    print(f"WARNING extra owner_files: {_em}")
+            print(f"FILE_API DEBUG: owner playlist count={len(others)}")
+        elif stored_uid:
+            others = await db.get_user_active_links(stored_uid, limit=100)
         else:
             others = []
 
         for doc in others:
-            if str(doc["_id"]) == str(unique_id):
+            if str(doc.get("_id")) == str(unique_id):
                 continue
-            fname = doc.get("file_name", "Unknown")
+            fname = doc.get("file_name") or "Unknown"
             mt, _ = mimetypes.guess_type(fname)
             user_files.append({
-                "id": str(doc["_id"]),
-                "name": fname,
-                "size": doc.get("file_size", ""),
+                "id":          str(doc["_id"]),
+                "name":        fname,
+                "size":        doc.get("file_size", ""),
                 "stream_link": f"{base_url}/show/{doc['_id']}",
-                "type": ("audio" if mt and mt.startswith("audio") else ("video" if mt and mt.startswith("video") else "file"))
+                "type": ("audio" if mt and mt.startswith("audio") else
+                         ("video" if mt and mt.startswith("video") else "file"))
             })
+        print(f"FILE_API DEBUG: user_files={len(user_files)}")
     except Exception as e:
         print(f"WARNING: Failed to fetch user_files for queue: {e}")
         user_files = []
