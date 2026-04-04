@@ -1368,7 +1368,7 @@ async def stream_media(r:Request, unique_id: str, fname: str):
             raise HTTPException(416)
         
         rl = ub - fb + 1
-        cs = 2 * 1024 * 1024  # 2MB chunks for faster streaming
+        cs = 1024 * 1024  # 1MB chunks (Telegram max limit for MTProto GetFile)
         
         body = tc.yield_file(fid, client_id, fb, ub, cs)
         

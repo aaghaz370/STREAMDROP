@@ -239,14 +239,7 @@ export default function Show() {
           <div className="flex flex-col min-w-0">
               
               <div className="w-full mb-6">
-                  {isVideo && playable && <VideoPlayer src={data.direct_dl_link} />}
-                  {isVideo && !playable && (
-                      <div className="w-full py-24 rounded-lg border border-[color:var(--border-color)] bg-[color:var(--surface-color)] flex flex-col items-center justify-center">
-                          <Film size={64} className="text-[color:var(--text-muted)] mb-4" />
-                          <h3 className="text-xl font-bold mb-2">Format Not Supported</h3>
-                          <p className="text-[color:var(--text-muted)]">HEVC/10-bit files cannot play in the browser. Use an external player.</p>
-                      </div>
-                  )}
+                  {isVideo && <VideoPlayer src={data.direct_dl_link} />}
                   {isAudio && <AudioPlayer src={data.direct_dl_link} title={data.file_name} />}
               </div>
 
