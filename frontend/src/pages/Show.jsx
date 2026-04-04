@@ -108,8 +108,74 @@ export default function Show() {
     });
     
     playerInstance.current = p;
-    return () => { try { p.destroy(); } catch {} };
+    
+    // --- Advanced Interaction Listeners ---
+    const handleDblClick = (e) => {
+        if (!playerInstance.current || type !== 'video') return;
+        const rect = p.elements.container.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        if (clickX > rect.width / 2) {
+            p.forward(10);
+            showHint('forward');
+        } else {
+            p.rewind(10);
+            showHint('rewind');
+        }
+    };
+
+    const handleKeyDown = (e) => {
+        // Only trigger if not typing in an input
+        if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+        if (!playerInstance.current) return;
+        
+        switch (e.code) {
+            case 'Space':
+            case 'KeyK':
+                e.preventDefault();
+                p.togglePlay();
+                break;
+            case 'ArrowRight':
+            case 'KeyL':
+                e.preventDefault();
+                p.forward(10);
+                showHint('forward');
+                break;
+            case 'ArrowLeft':
+            case 'KeyJ':
+                e.preventDefault();
+                p.rewind(10);
+                showHint('rewind');
+                break;
+            case 'KeyF':
+                e.preventDefault();
+                p.fullscreen.toggle();
+                break;
+            case 'KeyM':
+                e.preventDefault();
+                p.muted = !p.muted;
+                break;
+        }
+    };
+
+    p.on('ready', () => {
+        p.elements.container.addEventListener('dblclick', handleDblClick);
+    });
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => { 
+        window.removeEventListener('keydown', handleKeyDown);
+        try { p.destroy(); } catch {} 
+    };
   }, [status, type]);
+
+  // Visual hint state
+  const [hint, setHint] = useState(null);
+  const hintTimeout = useRef(null);
+  const showHint = (dir) => {
+      setHint(dir);
+      clearTimeout(hintTimeout.current);
+      hintTimeout.current = setTimeout(() => setHint(null), 500);
+  };
 
   // Sleep Timer logic
   useEffect(() => {
@@ -306,11 +372,27 @@ export default function Show() {
 
                   {/* Video overlays */}
                   {type === 'video' && (
-                      <div className="absolute top-4 right-4 z-20 flex gap-2">
-                          <button onClick={togglePiP} className="p-2 rounded-lg bg-black/60 text-white hover:bg-black/80 backdrop-blur" title="Picture in Picture">
-                              <PictureInPicture size={18} />
-                          </button>
-                      </div>
+                      <>
+                          {/* Double Tap Visual Hints */}
+                          {hint === 'rewind' && (
+                              <div className="absolute top-1/2 left-1/4 -translate-y-1/2 -translate-x-1/2 z-30 flex flex-col items-center justify-center bg-black/40 rounded-full w-20 h-20 text-white animate-pulse pointer-events-none">
+                                  <FastForward size={24} className="rotate-180 mb-1" />
+                                  <span className="font-bold text-sm">-10s</span>
+                              </div>
+                          )}
+                          {hint === 'forward' && (
+                              <div className="absolute top-1/2 right-1/4 -translate-y-1/2 translate-x-1/2 z-30 flex flex-col items-center justify-center bg-black/40 rounded-full w-20 h-20 text-white animate-pulse pointer-events-none">
+                                  <FastForward size={24} className="mb-1" />
+                                  <span className="font-bold text-sm">+10s</span>
+                              </div>
+                          )}
+                          
+                          <div className="absolute top-4 right-4 z-20 flex gap-2">
+                              <button onClick={togglePiP} className="p-2 rounded-lg bg-black/60 text-white hover:bg-black/80 backdrop-blur" title="Picture in Picture">
+                                  <PictureInPicture size={18} />
+                              </button>
+                          </div>
+                      </>
                   )}
               </div>
 
