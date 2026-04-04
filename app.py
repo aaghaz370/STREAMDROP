@@ -1373,10 +1373,11 @@ async def stream_media(r:Request, unique_id: str, fname: str):
         body = tc.yield_file(fid, client_id, fb, ub, cs)
         
         sc = 206 if rh else 200
+        disp = "attachment" if r.query_params.get("download") else "inline"
         hdrs = {
             "Content-Type": _mime,
             "Accept-Ranges": "bytes",
-            "Content-Disposition": f'inline; filename="{_fname}"',
+            "Content-Disposition": f'{disp}; filename="{_fname}"',
             "Content-Length": str(rl)
         }
         if rh: hdrs["Content-Range"] = f"bytes {fb}-{ub}/{fsize}"

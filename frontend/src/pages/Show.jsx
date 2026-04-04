@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import Plyr from 'plyr';
+import 'plyr/dist/plyr.css';
 import {
   Download, AlertTriangle, MonitorPlay, Film, Smartphone,
-  Tv2, Music, Clock, Search, ChevronRight, Play, Pause,
-  Volume2, VolumeX, Maximize, SkipBack, SkipForward
+  Tv2, Music, Clock, Search, ChevronRight
 } from 'lucide-react';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
 const AUDIO_EXT  = /\.(mp3|aac|wav|flac|m4a|ogg|opus)$/i;
 const IMAGE_EXT  = /\.(jpg|jpeg|png|gif|webp|svg|bmp)$/i;
 const PDF_EXT    = /\.pdf$/i;
@@ -20,201 +20,98 @@ function classify(name = '') {
   return 'video';
 }
 function canPlay(name = '') { return !UNPLAYABLE.test(name); }
-function fmtTime(s) {
-  if (!s || isNaN(s)) return '0:00';
-  const m = Math.floor(s / 60), sec = Math.floor(s % 60);
-  return `${m}:${sec < 10 ? '0' : ''}${sec}`;
-}
 
-// ── Custom Video Player (pure HTML5, zero library deps) ───────────────────────
 function VideoPlayer({ src }) {
-  const vRef = useRef(null);
-  const [playing, setPlaying]   = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [curTime, setCurTime]   = useState('0:00');
-  const [dur, setDur]           = useState('0:00');
-  const [muted, setMuted]       = useState(false);
-  const [buffering, setBuffering] = useState(true);
-  const [showCtrl, setShowCtrl]   = useState(true);
-  const hideRef = useRef(null);
+  const videoRef = useRef(null);
 
-  const resetHide = () => {
-    setShowCtrl(true);
-    clearTimeout(hideRef.current);
-    hideRef.current = setTimeout(() => setShowCtrl(false), 3000);
-  };
-
-  const togglePlay = async () => {
-    const v = vRef.current;
-    if (!v) return;
-    try {
-      if (v.paused) { await v.play(); setPlaying(true); resetHide(); }
-      else          { v.pause();     setPlaying(false); setShowCtrl(true); }
-    } catch (e) { console.warn('play error', e); }
-  };
-
-  const seek = e => {
-    const v = vRef.current;
-    if (!v || !v.duration) return;
-    v.currentTime = (parseFloat(e.target.value) / 1000) * v.duration;
-  };
-
-  const skip = sec => {
-    const v = vRef.current;
-    if (!v) return;
-    v.currentTime = Math.max(0, Math.min(v.duration || 0, v.currentTime + sec));
-  };
-
-  const toggleMute = () => {
-    const v = vRef.current;
-    if (!v) return;
-    v.muted = !muted;
-    setMuted(!muted);
-  };
-
-  const fullscreen = () => {
-    const v = vRef.current;
-    if (!v) return;
-    if (document.fullscreenElement) document.exitFullscreen?.();
-    else (v.parentElement?.requestFullscreen ?? v.webkitEnterFullscreen?.bind(v))?.();
-  };
+  useEffect(() => {
+    if (!videoRef.current) return;
+    const player = new Plyr(videoRef.current, {
+      controls: [
+        'play-large', 'play', 'progress', 'current-time', 'mute', 'volume',
+        'captions', 'settings', 'pip', 'airplay', 'fullscreen'
+      ],
+      settings: ['quality', 'speed'],
+      keyboard: { focused: true, global: true },
+      autoplay: true,
+    });
+    return () => { try { player.destroy(); } catch {} };
+  }, [src]);
 
   return (
-    <div
-      className="w-full h-full bg-black relative flex items-center justify-center select-none"
-      onMouseMove={resetHide}
-      onTouchStart={resetHide}
-    >
-      {/* ── Actual video ── */}
-      <video
-        ref={vRef}
-        src={src}
-        className="w-full h-full object-contain"
-        playsInline
-        preload="metadata"
-        onLoadedMetadata={e => { setDur(fmtTime(e.target.duration)); setBuffering(false); }}
-        onTimeUpdate={e => {
-          const v = e.target;
-          if (v.duration) {
-            setProgress((v.currentTime / v.duration) * 1000);
-            setCurTime(fmtTime(v.currentTime));
-          }
-        }}
-        onWaiting={() => setBuffering(true)}
-        onPlaying={() => { setBuffering(false); setPlaying(true); }}
-        onPause={() => setPlaying(false)}
-        onEnded={() => { setPlaying(false); setShowCtrl(true); }}
-        onClick={togglePlay}
-      />
-
-      {/* ── Buffering spinner ── */}
-      {buffering && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-12 h-12 border-4 border-white/20 border-t-indigo-400 rounded-full animate-spin" />
-        </div>
-      )}
-
-      {/* ── Big play button (paused, not buffering) ── */}
-      {!playing && !buffering && (
-        <div className="absolute inset-0 flex items-center justify-center" onClick={togglePlay}>
-          <div className="w-20 h-20 rounded-full bg-black/60 backdrop-blur border border-white/20 flex items-center justify-center cursor-pointer hover:bg-black/80 active:scale-95 transition-all">
-            <Play fill="white" size={36} className="ml-2 text-white" />
-          </div>
-        </div>
-      )}
-
-      {/* ── Controls overlay ── */}
-      <div className={`absolute inset-0 flex flex-col justify-between transition-opacity duration-300 pointer-events-none ${showCtrl ? 'opacity-100' : 'opacity-0'}`}>
-        {/* Top: title */}
-        <div className="bg-gradient-to-b from-black/70 to-transparent px-4 pt-3 pb-6">
-          {/* title slot */}
-        </div>
-
-        {/* Bottom: controls */}
-        <div className="bg-gradient-to-t from-black/90 to-transparent px-4 pb-4 pt-8 pointer-events-auto">
-          {/* Seek bar */}
-          <input
-            type="range" min={0} max={1000} step={1} value={progress}
-            onChange={seek}
-            className="w-full h-1 mb-3 rounded-full appearance-none cursor-pointer accent-indigo-500"
-            style={{ accentColor: '#6366f1' }}
-          />
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button onClick={togglePlay} className="text-white hover:text-indigo-300 transition active:scale-90">
-                {playing ? <Pause fill="white" size={24} /> : <Play fill="white" size={24} />}
-              </button>
-              <button onClick={() => skip(-10)} className="text-white hover:text-indigo-300 transition active:scale-90 hidden sm:block">
-                <SkipBack size={20} />
-              </button>
-              <button onClick={() => skip(10)} className="text-white hover:text-indigo-300 transition active:scale-90 hidden sm:block">
-                <SkipForward size={20} />
-              </button>
-              <button onClick={toggleMute} className="text-white hover:text-indigo-300 transition active:scale-90">
-                {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-              </button>
-              <span className="text-white/70 text-xs tabular-nums font-medium">{curTime} / {dur}</span>
-            </div>
-            <button onClick={fullscreen} className="text-white hover:text-indigo-300 transition active:scale-90">
-              <Maximize size={20} />
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="w-full h-full bg-black overflow-hidden flex items-center justify-center rounded-xl" style={{ borderRadius: 8, background: '#000' }}>
+      <video ref={videoRef} playsInline crossOrigin="anonymous" className="w-full h-full object-contain">
+        <source src={src} />
+      </video>
     </div>
   );
 }
 
-// ── Audio player (native) ─────────────────────────────────────────────────────
 function AudioPlayer({ src, title }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const p = new Plyr(ref.current, {
+      controls: ['play', 'progress', 'current-time', 'duration', 'mute', 'volume'],
+      autoplay: true,
+    });
+    return () => { try { p.destroy(); } catch {} };
+  }, [src]);
+
   return (
-    <div className="flex flex-col items-center justify-center px-8 py-10 gap-5 bg-[color:var(--bg-color)]">
-      <div className="w-32 h-32 rounded-2xl bg-gradient-to-br from-indigo-600/20 to-purple-700/20 border border-indigo-500/20 flex items-center justify-center shadow-xl shadow-indigo-500/10">
-        <Music size={48} className="text-indigo-400" />
+    <div className="w-full flex flex-col items-center justify-center px-8 py-10 gap-6 bg-[color:var(--bg-color)]">
+      <div className="w-32 h-32 md:w-40 md:h-40 rounded-2xl bg-gradient-to-br from-[#2a2a2a] to-[#121212] border border-[color:var(--border-color)] flex items-center justify-center shadow-2xl">
+        <Music size={48} className="text-white/20" />
       </div>
-      <div className="text-center">
-        <p className="font-bold text-[color:var(--text-color)] max-w-sm truncate">{title}</p>
-        <p className="text-[color:var(--text-muted)] text-sm mt-0.5">StreamDrop Audio</p>
+      <div className="text-center w-full max-w-2xl px-6">
+        <h2 className="text-xl md:text-2xl font-bold mb-2 tracking-tight text-[color:var(--text-color)]">{title}</h2>
+        <p className="text-[color:var(--text-muted)] text-sm mb-6">StreamDrop Audio Stream</p>
       </div>
-      <audio controls src={src} className="w-full max-w-sm" style={{ colorScheme: 'dark' }} />
+      <div className="px-2 w-full max-w-sm">
+        <audio ref={ref} crossOrigin="anonymous">
+          <source src={src} />
+        </audio>
+      </div>
     </div>
   );
 }
 
-// ── Action Buttons ────────────────────────────────────────────────────────────
 function ActionButtons({ data }) {
   const mob = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-  const b = 'inline-flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm border transition-all active:scale-95 hover:opacity-90';
+  const b = 'inline-flex flex-1 items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm border transition-all active:scale-95 hover:opacity-90';
 
   return (
-    <div className="flex flex-wrap gap-2.5">
-      <a href={data.direct_dl_link} className={`${b} bg-indigo-500 text-white border-indigo-500 shadow-md shadow-indigo-500/20`}>
-        <Download size={16} /> Download
+    <div className="flex flex-col gap-3 min-w-[200px]">
+      <a href={`${data.direct_dl_link}?download=true`} download className={`${b} bg-indigo-500 text-white border-indigo-500 shadow-lg`}>
+        <Download size={18} /> Download Link
       </a>
       {mob ? (
-        <>
-          <a href={data.vlc_player_link_mobile} className={`${b} bg-[color:var(--bg-color)] border-[color:var(--border-color)] text-[color:var(--text-color)]`}>
-            <Smartphone size={16} className="text-orange-400" /> VLC Mobile
+        <div className="flex items-center gap-2 mt-1">
+          <a href={data.vlc_player_link_mobile} className={`${b} !text-orange-400 bg-orange-400/10 border-transparent hover:bg-orange-400/20`}>
+            <Smartphone size={18} /> VLC
           </a>
-          <a href={data.mx_player_link} className={`${b} bg-[color:var(--bg-color)] border-[color:var(--border-color)] text-[color:var(--text-color)]`}>
-            <Tv2 size={16} className="text-blue-400" /> MX Player
+          <a href={data.mx_player_link} className={`${b} !text-blue-400 bg-blue-400/10 border-transparent hover:bg-blue-400/20`}>
+            <Tv2 size={18} /> MX
           </a>
-        </>
+        </div>
       ) : (
-        <>
-          <a href={data.vlc_player_link_pc} className={`${b} bg-[color:var(--bg-color)] border-[color:var(--border-color)] text-[color:var(--text-color)]`}>
-            <MonitorPlay size={16} className="text-purple-400" /> VLC Desktop
+        <div className="flex items-center gap-2 mt-1">
+          <a href={data.vlc_player_link_pc} className={`${b} text-[color:var(--text-color)] bg-white/5 border-transparent hover:bg-white/10`}>
+            <MonitorPlay size={18} className="text-purple-400" /> VLC Desktop
           </a>
-          <a href={data.vlc_player_link_mobile} className={`${b} bg-[color:var(--bg-color)] border-[color:var(--border-color)] text-[color:var(--text-color)]`}>
-            <Smartphone size={16} className="text-orange-400" /> VLC Mobile
-          </a>
-        </>
+          <button onClick={() => {
+            navigator.clipboard.writeText(data.direct_dl_link);
+            alert('Stream URL copied! Open VLC on PC > Media > Open Network Stream and paste the URL.');
+          }} className={`${b} text-[color:var(--text-color)] bg-white/5 border-transparent hover:bg-white/10`}>
+            🔗 Copy VLC URL
+          </button>
+        </div>
       )}
     </div>
   );
 }
 
-// ── Queue Sidebar ─────────────────────────────────────────────────────────────
 function Queue({ currentId, files }) {
   const [q, setQ]   = useState('');
   const [tab, setTab] = useState('all');
@@ -222,39 +119,41 @@ function Queue({ currentId, files }) {
     (tab === 'all' || f.type === tab) && (!q || f.name.toLowerCase().includes(q.toLowerCase()))
   ), [files, tab, q]);
 
+  if (!files?.length) return null;
+
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div className="px-4 pt-4 pb-3 border-b border-[color:var(--border-color)] space-y-3 flex-shrink-0">
-        <p className="text-xs font-bold uppercase tracking-widest text-[color:var(--text-muted)]">Up Next</p>
+    <div className="flex flex-col h-full bg-[color:var(--surface-color)] border border-[color:var(--border-color)] overflow-hidden rounded-xl">
+      <div className="px-4 pt-4 pb-3 space-y-3">
+        <h3 className="text-lg font-bold text-[color:var(--text-color)]">Up Next</h3>
         <div className="relative">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)] pointer-events-none" />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search…"
-            className="w-full pl-8 pr-3 py-2 text-sm rounded-lg bg-[color:var(--bg-color)] border border-[color:var(--border-color)] text-[color:var(--text-color)] placeholder:text-[color:var(--text-muted)] focus:border-indigo-500 outline-none transition"
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)] pointer-events-none" />
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search files..."
+            className="w-full pl-9 pr-3 py-2 text-sm rounded-md bg-[color:var(--bg-color)] border border-[color:var(--border-color)] text-[color:var(--text-color)] placeholder:text-[color:var(--text-muted)] focus:border-indigo-500 outline-none transition"
           />
         </div>
-        <div className="flex gap-1.5">
+        <div className="flex gap-2">
           {['all', 'video', 'audio'].map(t => (
             <button key={t} onClick={() => setTab(t)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize transition-all ${tab === t ? 'bg-indigo-500 text-white' : 'bg-[color:var(--bg-color)] border border-[color:var(--border-color)] text-[color:var(--text-muted)]'}`}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold capitalize transition-colors ${tab === t ? 'bg-indigo-500 text-white' : 'bg-white/10 text-[color:var(--text-muted)] hover:text-[color:var(--text-color)]'}`}
             >{t}</button>
           ))}
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-1">
         {shown.length === 0
-          ? <p className="text-[color:var(--text-muted)] text-sm text-center py-8">No files found.</p>
+          ? <p className="text-[color:var(--text-muted)] text-sm text-center py-8">No files match your search.</p>
           : shown.map(f => (
             <a key={f.id} href={f.stream_link}
-              className={`group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[color:var(--bg-color)] ${f.id === currentId ? 'border-l-2 border-indigo-500 pl-[14px]' : ''}`}
+              className={`group flex items-start gap-3 p-2.5 rounded-md transition-colors hover:bg-[color:var(--bg-color)] ${f.id === currentId ? 'bg-white/5 text-indigo-400' : 'text-[color:var(--text-color)]'}`}
             >
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${f.id === currentId ? 'bg-indigo-500/10 text-indigo-400' : 'bg-[color:var(--bg-color)] text-[color:var(--text-muted)]'}`}>
-                {f.type === 'audio' ? <Music size={15} /> : <Film size={15} />}
+              <div className={`w-10 h-10 rounded-md bg-[color:var(--bg-color)] flex items-center justify-center flex-shrink-0 ${f.id === currentId ? 'text-indigo-400' : 'text-[color:var(--text-muted)]'}`}>
+                {f.type === 'audio' ? <Music size={18} /> : (f.type === 'video' ? <Film size={18} /> : <Film size={18} />)}
               </div>
-              <div className="min-w-0 flex-1">
-                <p className={`text-sm font-medium truncate ${f.id === currentId ? 'text-indigo-400' : 'text-[color:var(--text-color)]'}`}>{f.name}</p>
-                <p className="text-xs text-[color:var(--text-muted)] mt-0.5">{f.size}</p>
+              <div className="min-w-0 flex-1 mt-0.5">
+                <p className="font-semibold text-sm truncate leading-tight" title={f.name}>{f.name}</p>
+                <p className="text-xs text-[color:var(--text-muted)] opacity-80 mt-1">{f.size}</p>
               </div>
-              <ChevronRight size={13} className="opacity-0 group-hover:opacity-100 text-[color:var(--text-muted)] transition flex-shrink-0" />
+              <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 text-[color:var(--text-muted)] transition flex-shrink-0 mt-1.5" />
             </a>
           ))
         }
@@ -263,7 +162,6 @@ function Queue({ currentId, files }) {
   );
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
 export default function Show() {
   const { uniqueId } = useParams();
   const [status, setStatus] = useState('loading');
@@ -287,33 +185,32 @@ export default function Show() {
   }, [uniqueId]);
 
   if (status === 'loading') return (
-    <div className="w-full h-full flex flex-col items-center justify-center gap-3">
-      <div className="w-10 h-10 border-[3px] border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
-      <p className="text-[color:var(--text-muted)] text-xs font-bold uppercase tracking-widest">Loading…</p>
+    <div className="w-full h-full flex flex-col items-center justify-center gap-4">
+      <div className="w-10 h-10 border-[3px] border-indigo-500/10 border-t-indigo-500 rounded-full animate-spin" />
+      <p className="text-[color:var(--text-muted)] text-sm font-bold uppercase tracking-widest">Connecting</p>
     </div>
   );
 
   if (status === 'expired') return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center gap-5">
-      <div className="w-20 h-20 rounded-full bg-amber-400/10 border border-amber-400/20 flex items-center justify-center">
-        <Clock size={36} className="text-amber-400" />
-      </div>
-      <div>
-        <h2 className="text-2xl font-bold mb-1">Link Expired</h2>
-        <p className="text-[color:var(--text-muted)] text-sm">Send the file to the bot again to get a fresh link.</p>
-      </div>
+    <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center gap-4">
+      <Clock size={72} className="text-amber-400 mb-2" />
+      <h2 className="text-3xl font-bold mb-2">Link Expired</h2>
+      <p className="text-[color:var(--text-muted)] text-sm max-w-md mb-2">This link has expired.</p>
+      <p className="text-xs text-[color:var(--text-muted)] max-w-sm mb-6">To get a new stream link, simply send the file again to the bot and a fresh link will be generated instantly.</p>
+      <a href="https://t.me/STREAM_DROP_BOT" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 bg-indigo-500 text-white font-semibold rounded px-6 py-3 hover:brightness-110 active:scale-95 transition">
+        Open Bot
+      </a>
     </div>
   );
 
   if (status === 'error') return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center gap-5">
-      <div className="w-20 h-20 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center">
-        <AlertTriangle size={36} className="text-red-400" />
-      </div>
-      <div>
-        <h2 className="text-2xl font-bold mb-1">File Not Found</h2>
-        <p className="text-[color:var(--text-muted)] text-sm">This file was removed or the link is invalid.</p>
-      </div>
+    <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center gap-4">
+      <AlertTriangle size={64} className="text-indigo-500 mb-2" />
+      <h2 className="text-3xl font-bold mb-2">Content Unavailable</h2>
+      <p className="text-[color:var(--text-muted)] text-sm max-w-md mb-6">The file you are looking for has been removed or is inaccessible.</p>
+      <a href="https://t.me/STREAM_DROP_BOT" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 bg-indigo-500 text-white font-semibold rounded px-6 py-3 hover:brightness-110 active:scale-95 transition">
+        Open Bot
+      </a>
     </div>
   );
 
@@ -321,81 +218,56 @@ export default function Show() {
   const isVideo = data.is_media && type === 'video';
   const isAudio = data.is_media && type === 'audio';
   const playable = canPlay(data.file_name);
-  const isMkv   = data.file_name.toLowerCase().endsWith('.mkv');
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full h-full flex flex-col overflow-hidden">
+    <div className="w-full h-full overflow-y-auto overflow-x-hidden bg-[color:var(--bg-color)]">
+      
+      {/* ── Header ── */}
+      <header className="relative z-20 flex items-center justify-between px-6 py-4 bg-gradient-to-b from-black/80 to-transparent absolute top-0 left-0 w-full pointer-events-none">
+          <div className="flex items-center gap-2">
+              <span className="font-bold text-lg tracking-tight text-white drop-shadow">StreamDrop</span>
+          </div>
+          <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-white/70 drop-shadow">
+                  Powered by <span className="text-white">UNIVORA</span>
+              </span>
+          </div>
+      </header>
 
-      {/* ── Player ── */}
-      {isVideo && (
-        <div className="w-full flex-shrink-0 bg-black" style={{ aspectRatio: '16/9', maxHeight: '62vh' }}>
-          {playable
-            ? <VideoPlayer src={data.direct_dl_link} />
-            : (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-4">
-                <div className="w-14 h-14 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                  <MonitorPlay size={26} className="text-white/30" />
-                </div>
-                <div className="text-center px-8">
-                  <p className="text-white/50 text-sm font-semibold">Cannot play in browser</p>
-                  <p className="text-white/25 text-xs mt-1">HEVC / 10-bit — use VLC or MX Player below</p>
-                </div>
+      <div className="max-w-[1600px] mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 mt-14">
+          
+          <div className="flex flex-col min-w-0">
+              
+              <div className="w-full mb-6">
+                  {isVideo && playable && <VideoPlayer src={data.direct_dl_link} />}
+                  {isVideo && !playable && (
+                      <div className="w-full py-24 rounded-lg border border-[color:var(--border-color)] bg-[color:var(--surface-color)] flex flex-col items-center justify-center">
+                          <Film size={64} className="text-[color:var(--text-muted)] mb-4" />
+                          <h3 className="text-xl font-bold mb-2">Format Not Supported</h3>
+                          <p className="text-[color:var(--text-muted)]">HEVC/10-bit files cannot play in the browser. Use an external player.</p>
+                      </div>
+                  )}
+                  {isAudio && <AudioPlayer src={data.direct_dl_link} title={data.file_name} />}
               </div>
-            )
-          }
-        </div>
-      )}
 
-      {isAudio && <AudioPlayer src={data.direct_dl_link} title={data.file_name} />}
+              <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 bg-[color:var(--surface-color)] p-6 rounded-xl border border-[color:var(--border-color)]">
+                  <div className="flex-1 min-w-0">
+                      <h1 className="text-xl md:text-2xl font-bold mb-2 break-all">{data.file_name}</h1>
+                      <div className="flex items-center gap-3">
+                          <span className="text-sm font-semibold text-[color:var(--text-muted)] bg-white/5 px-2 py-1 rounded">{data.file_size}</span>
+                          <span className="text-sm font-semibold text-indigo-500 uppercase tracking-wider">Ready</span>
+                      </div>
+                  </div>
+                  <ActionButtons data={data} />
+              </div>
 
-      {/* ── Info + Sidebar ── */}
-      <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden border-t border-[color:var(--border-color)]">
-
-        {/* Left column */}
-        <div className="flex-1 min-w-0 overflow-y-auto p-5 md:px-8 md:py-6 space-y-5">
-          <div>
-            <h1 className="text-base font-bold leading-snug text-[color:var(--text-color)] break-words">{data.file_name}</h1>
-            <p className="text-[color:var(--text-muted)] text-sm mt-1">{data.file_size}</p>
           </div>
 
-          {isVideo && !playable && (
-            <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
-              <AlertTriangle size={15} className="text-amber-400 flex-shrink-0 mt-0.5" />
-              <p className="text-[color:var(--text-muted)] text-sm">HEVC / 10-bit cannot be decoded by any browser. Use VLC or MX Player for full-quality playback.</p>
-            </div>
-          )}
-
-          {isVideo && playable && isMkv && (
-            <div className="flex items-start gap-3 p-4 rounded-xl bg-[color:var(--bg-color)] border border-[color:var(--border-color)]">
-              <AlertTriangle size={15} className="text-amber-400 flex-shrink-0 mt-0.5" />
-              <p className="text-[color:var(--text-muted)] text-sm">MKV may have limited seeking in browser. For best experience click VLC or MX Player.</p>
-            </div>
-          )}
-
-          {type === 'image' && (
-            <img src={data.direct_dl_link} alt={data.file_name}
-              className="max-w-full max-h-[65vh] object-contain rounded-xl border border-[color:var(--border-color)]" />
-          )}
-          {type === 'pdf' && (
-            <iframe src={data.direct_dl_link} className="w-full rounded-xl border border-[color:var(--border-color)]" style={{ height: '72vh' }} />
-          )}
-
-          <ActionButtons data={data} />
-
-          {data.user_files?.length > 0 && (
-            <div className="md:hidden border-t border-[color:var(--border-color)] pt-5">
+          <div className="w-full lg:w-auto h-[600px] lg:h-auto">
               <Queue currentId={uniqueId} files={data.user_files} />
-            </div>
-          )}
-        </div>
-
-        {/* Right sidebar */}
-        {data.user_files?.length > 0 && (
-          <div className="hidden md:flex w-72 flex-shrink-0 border-l border-[color:var(--border-color)] bg-[color:var(--surface-color)] flex-col overflow-hidden">
-            <Queue currentId={uniqueId} files={data.user_files} />
           </div>
-        )}
+
       </div>
-    </motion.div>
+    </div>
   );
 }
