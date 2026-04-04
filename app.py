@@ -447,9 +447,34 @@ async def callback_handlers(client: Client, cb: "CallbackQuery"):
         await show_plans_command(client, cb.message)
     elif cb.data.startswith("showplan_"):
         plan_id = cb.data.split("_")[1]
+        user_id = cb.from_user.id
         
+        # In-Bot Trial Activation
+        if plan_id == "trial":
+            user_data = await db.get_user_data(user_id)
+            if user_id == Config.OWNER_ID:
+                await cb.answer("❌ You are the owner. You already have unlimited access.", show_alert=True)
+                return
+            if user_data.get("trial_used"):
+                await cb.answer("❌ You have already consumed your free trial.", show_alert=True)
+                return
+            if user_data.get("plan") not in ("free", None) and user_data.get("plan") != "trial":
+                await cb.answer("❌ You already have an active premium plan.", show_alert=True)
+                return
+            
+            # Activate 7 days trial
+            import datetime
+            expiry = datetime.datetime.now() + datetime.timedelta(days=7)
+            await db.activate_trial(user_id, expiry)
+            await cb.answer("✅ 7 Days Premium Trial Activated Successfully!", show_alert=True)
+            
+            # Refresh plans UI
+            cb.message.from_user = cb.from_user
+            cb.message.text = None # Mark as callback edit
+            await show_plans_command(client, cb.message)
+            return
+
         details = {
-            "trial": "**🎁 7 DAYS FREE TRIAL**\n├ 💸 **Price:** FREE\n├ ⚡ **Uploads:** Unlimited\n└ ⏳ **Link Expiry:** Lifetime (Never Expire)",
             "weekly": "**🚀 1 WEEK PLAN**\n├ 💸 **Price:** ₹70 / 7 Days\n├ ⚡ **Uploads:** Unlimited\n└ ⏳ **Link Expiry:** 6 Months",
             "monthly": "**🌟 1 MONTH PLAN**\n├ 💸 **Price:** ₹219 / 30 Days\n├ ⚡ **Uploads:** Unlimited\n└ ⏳ **Link Expiry:** 8 Months",
             "bimonthly": "**👑 2 MONTHS PLAN (BEST VALUE)**\n├ 💸 **Price:** ₹499 / 60 Days\n├ ⚡ **Uploads:** Unlimited\n└ ⏳ **Link Expiry:** 1 Year",
@@ -501,8 +526,16 @@ Unlock **Unlimited Uploads** & **Longer Link Expiry**!
 
 👇 **Select a plan below to view details:**
 """
+    user_data = await db.get_user_data(user_id)
+    
+    trial_btn = InlineKeyboardButton("🟢 Start 7-Day Free Trial", callback_data="showplan_trial")
+    if user_data.get("plan") == "trial":
+        trial_btn = InlineKeyboardButton("🟣 Active 7-Day Trial", callback_data="showplan_trial")
+    elif user_data.get("trial_used"):
+        trial_btn = InlineKeyboardButton("🔴 Trial Consumed", callback_data="showplan_trial")
+
     buttons = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎁 7 Days Free Trial", callback_data="showplan_trial")],
+        [trial_btn],
         [InlineKeyboardButton("🚀 1 Week", callback_data="showplan_weekly"),
          InlineKeyboardButton("🌟 1 Month", callback_data="showplan_monthly")],
         [InlineKeyboardButton("👑 2 Months", callback_data="showplan_bimonthly"),
