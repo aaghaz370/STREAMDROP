@@ -112,7 +112,7 @@ class Database:
         cursor = self.col.find({"user_id": user_id}).sort("timestamp", -1).limit(limit)
         return await cursor.to_list(length=limit)
 
-    async def get_user_active_links(self, user_id, limit=5):
+    async def get_user_active_links(self, user_id, limit=200):
         # Filter: Expiry is None OR Expiry > Now
         now = datetime.datetime.now()
         query = {

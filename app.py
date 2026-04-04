@@ -1061,48 +1061,69 @@ async def health_check():
 
 @app.get("/api/dashboard/{user_id}", response_class=JSONResponse)
 async def dashboard_api(request: Request, user_id: int, token: str):
-    # 1. Validate Token (HMAC)
+    # 1. Validate Token (HMAC) — separate from data fetch so errors are distinct
+    import hmac, hashlib, mimetypes as _mt
+    secret = Config.BOT_TOKEN.encode()
+    msg = str(user_id).encode()
+    expected_token = hmac.new(secret, msg, hashlib.sha256).hexdigest()
+    
+    if not hmac.compare_digest(token, expected_token):
+        raise HTTPException(status_code=403, detail="Invalid Token. Please use the link from the bot.")
+    
+    # Save token to persistent store so same browser session doesn't need re-auth
+    # (handled client-side via localStorage on success)
+    
+    # 2. Fetch ALL User Links (active + expired)  
     try:
-        import hmac, hashlib
-        secret = Config.BOT_TOKEN.encode()
-        msg = str(user_id).encode()
-        expected_token = hmac.new(secret, msg, hashlib.sha256).hexdigest()
-        
-        if not hmac.compare_digest(token, expected_token):
-             raise HTTPException(status_code=403, detail="Invalid Token. Please use the link from the bot.")
-             
-        # 2. Fetch ALL User Links (active + expired)
         links = await db.get_all_user_links_with_status(user_id)
-        
-        # 3. Format Data for Template
-        formatted_links = []
-        for link in links:
-             f_name = link.get("file_name", "Unknown")
-             f_size = link.get("file_size", "Unknown")
-             u_id = link.get("_id")
-             ts = link.get("timestamp", 0)
-             expiry = link.get("expiry_date")
-             is_expired = link.get("is_expired", False)
-             dl_link = f"{Config.BASE_URL}/dl/{u_id}/{f_name}"
-             stream_link = f"{Config.BASE_URL}/show/{u_id}"
-             date_str = link.get("date_str", "Unknown")
-             
-             formatted_links.append({
-                 "name": f_name,
-                 "size": f_size,
-                 "date": date_str,
-                 "dl_link": dl_link,
-                 "stream_link": stream_link,
-                 "timestamp": ts,
-                 "expiry": expiry.strftime('%Y-%m-%d') if expiry else "Never",
-                 "is_expired": is_expired
-             })
-             
-        return {"links": formatted_links, "total": len(formatted_links)}
-             
     except Exception as e:
-         print(f"Dashboard API Error: {e}")
-         raise HTTPException(status_code=403, detail="Access Denied")
+        print(f"Dashboard DB Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to load files from database.")
+    
+    # 3. Format Data for Frontend
+    base = Config.BASE_URL.rstrip('/')
+    formatted_links = []
+    for link in links:
+        f_name = link.get("file_name", "Unknown")
+        f_size = link.get("file_size", "Unknown")
+        u_id   = link.get("_id")
+        ts     = link.get("timestamp", 0)
+        expiry = link.get("expiry_date")
+        is_expired = link.get("is_expired", False)
+        date_str = link.get("date_str", "Unknown")
+        
+        from urllib.parse import quote
+        enc_name = quote(f_name, safe='')
+        dl_link     = f"{base}/dl/{u_id}/{enc_name}"
+        stream_link = f"{base}/show/{u_id}"
+        
+        mime, _ = _mt.guess_type(f_name)
+        if mime and mime.startswith("video"):    media_type = "video"
+        elif mime and mime.startswith("audio"):  media_type = "audio"
+        elif mime and mime.startswith("image"):  media_type = "image"
+        elif mime in ("application/pdf",):       media_type = "document"
+        else:                                    media_type = "file"
+        
+        # File size in bytes for sorting (parse from human-readable)
+        size_bytes = link.get("file_size_bytes", 0)
+        
+        formatted_links.append({
+            "id":         str(u_id),
+            "name":       f_name,
+            "size":       f_size,
+            "size_bytes": size_bytes,
+            "date":       date_str,
+            "dl_link":    dl_link,
+            "stream_link": stream_link,
+            "timestamp":  ts,
+            "expiry":     expiry.strftime('%d %b %Y') if expiry else "Never",
+            "is_expired": is_expired,
+            "media_type": media_type,
+        })
+         
+    return {"links": formatted_links, "total": len(formatted_links)}
+
+
 @app.get("/api/file/{unique_id}", response_class=JSONResponse)
 async def get_file_details_api(request: Request, unique_id: str):
     # db.get_link_full directly returns data without Telegram API, preventing "Access Denied" on refresh due to FloodWaits
@@ -1181,7 +1202,7 @@ async def get_file_details_api(request: Request, unique_id: str):
     user_files = []
     try:
         if user_id_from_db:
-            others = await db.get_user_active_links(user_id_from_db, limit=30)
+            others = await db.get_user_active_links(user_id_from_db, limit=100)
             for doc in others:
                 if str(doc["_id"]) == str(unique_id):
                     continue

@@ -41,6 +41,78 @@ const THEMES = {
   binary: { bg: 'bg-sky-500', text: 'text-sky-500', border: 'border-sky-500/30' },
 };
 
+const TYPE_FILTERS = [
+  { key: 'all',      label: 'All',   icon: <Film size={13}/> },
+  { key: 'video',    label: 'Video', icon: <Film size={13}/> },
+  { key: 'audio',    label: 'Audio', icon: <Music size={13}/> },
+  { key: 'image',    label: 'Image', icon: <ImageIcon size={13}/> },
+  { key: 'document', label: 'Doc',   icon: <FileText size={13}/> },
+];
+
+function QueuePanel({ files, currentId, theme }) {
+  const [q, setQ]       = useState('');
+  const [tab, setTab]   = useState('all');
+
+  const shown = useMemo(() => {
+    return (files || []).filter(f => {
+      const ftype = classify(f.name);
+      const matchTab = tab === 'all' || ftype === tab;
+      const matchQ   = !q || f.name.toLowerCase().includes(q.toLowerCase());
+      return matchTab && matchQ;
+    });
+  }, [files, tab, q]);
+
+  return (
+    <div className="flex flex-col bg-[color:var(--surface-color)] border border-[color:var(--border-color)] rounded-2xl shadow-sm overflow-hidden flex-1 max-h-[800px]">
+      <div className="p-4 border-b border-[color:var(--border-color)] space-y-3">
+        <h3 className="font-bold flex items-center gap-2 text-[color:var(--text-color)]">
+          <Film size={18} className={theme.text} /> Cloud Library
+          <span className="ml-auto text-xs font-semibold text-[color:var(--text-muted)] bg-[color:var(--bg-color)] px-2 py-0.5 rounded-full">{files.length}</span>
+        </h3>
+        {/* Search */}
+        <div className="relative">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--text-muted)] pointer-events-none" />
+          <input value={q} onChange={e => setQ(e.target.value)}
+            placeholder="Search files..."
+            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-[color:var(--bg-color)] border border-[color:var(--border-color)] text-[color:var(--text-color)] placeholder:text-[color:var(--text-muted)] focus:border-indigo-500 focus:outline-none transition" />
+        </div>
+        {/* Type Filters */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {TYPE_FILTERS.map(f => (
+            <button key={f.key} onClick={() => setTab(f.key)}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all ${tab === f.key ? `${theme.bg} text-white shadow-sm` : 'bg-[color:var(--bg-color)] text-[color:var(--text-muted)] hover:text-[color:var(--text-color)]'}`}>
+              {f.icon} {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
+        {shown.length === 0 ? (
+          <div className="text-center py-10 text-[color:var(--text-muted)] text-sm">No files match.</div>
+        ) : shown.map(f => {
+          const isActive = f.id === currentId;
+          const fType = classify(f.name);
+          const fIcon = fType === 'audio' ? <Music size={15}/> : (fType === 'document' ? <FileText size={15}/> : (fType === 'image' ? <ImageIcon size={15}/> : <Film size={15}/>));
+          return (
+            <a key={f.id} href={f.stream_link}
+              className={`flex items-center gap-3 p-2.5 rounded-lg transition-colors group ${isActive ? 'bg-[color:var(--bg-color)] border border-[color:var(--border-color)]' : 'hover:bg-[color:var(--bg-color)] border border-transparent'}`}>
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-sm ${isActive ? `${theme.bg} text-white` : 'bg-[color:var(--surface-color)] border border-[color:var(--border-color)] text-[color:var(--text-muted)]'}`}>
+                {fIcon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-semibold truncate leading-tight ${isActive ? 'text-[color:var(--text-color)]' : 'text-[color:var(--text-muted)] group-hover:text-[color:var(--text-color)]'}`}>{f.name}</p>
+                <p className="text-[10px] text-[color:var(--text-muted)] mt-0.5">{f.size}</p>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
+
 export default function Show() {
   const { uniqueId } = useParams();
   const [status, setStatus] = useState('loading');
@@ -536,36 +608,9 @@ export default function Show() {
                       </div>
                   )}
 
-                  {/* Playlist Queue */}
+                  {/* Playlist Queue with Filters */}
                   {data.user_files?.length > 0 && (
-                      <div className="flex flex-col bg-[color:var(--surface-color)] border border-[color:var(--border-color)] rounded-2xl shadow-sm overflow-hidden flex-1 max-h-[800px]">
-                          <div className="p-4 border-b border-[color:var(--border-color)]">
-                              <h3 className="font-bold mb-3 flex items-center gap-2">
-                                  <Film size={18} className={theme.text}/> Files in Cloud
-                              </h3>
-                              <div className="w-full bg-[color:var(--bg-color)] border border-[color:var(--border-color)] rounded-lg p-2 text-sm text-[color:var(--text-muted)] flex items-center gap-2">
-                                  <Search size={16} /> <span className="opacity-70">Scroll down to see more...</span>
-                              </div>
-                          </div>
-                          <div className="flex-1 overflow-y-auto p-2">
-                              {data.user_files.map(f => {
-                                  const isActive = f.id === uniqueId;
-                                  const fType = classify(f.name);
-                                  const fIcon = fType === 'audio' ? <Music size={16}/> : (fType === 'document' ? <FileText size={16}/> : (fType === 'image' ? <ImageIcon size={16}/> : <Film size={16}/>));
-                                  return (
-                                      <a key={f.id} href={f.stream_link} className={`flex items-center gap-3 p-3 rounded-lg transition-colors group mb-1 ${isActive ? 'bg-[color:var(--bg-color)] border border-[color:var(--border-color)] shadow-sm' : 'hover:bg-[color:var(--bg-color)] border border-transparent'}`}>
-                                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isActive ? `${theme.bg} text-white` : 'bg-[color:var(--surface-color)] border border-[color:var(--border-color)] text-[color:var(--text-muted)] group-hover:text-[color:var(--text-color)]'}`}>
-                                              {fIcon}
-                                          </div>
-                                          <div className="flex-1 min-w-0">
-                                              <p className={`text-sm font-semibold truncate ${isActive ? 'text-[color:var(--text-color)]' : 'text-[color:var(--text-muted)] group-hover:text-[color:var(--text-color)]'}`}>{f.name}</p>
-                                              <p className="text-[11px] font-medium text-[color:var(--text-muted)] mt-0.5">{f.size}</p>
-                                          </div>
-                                      </a>
-                                  )
-                              })}
-                          </div>
-                      </div>
+                      <QueuePanel files={data.user_files} currentId={uniqueId} theme={theme} />
                   )}
               </div>
           )}
