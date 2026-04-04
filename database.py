@@ -167,6 +167,26 @@ class Database:
             doc["is_expired"] = bool(expiry and expiry < now)
         return docs
 
+    async def get_active_links_legacy_admin(self):
+        """Fetch only active (non-expired) zero-user_id docs — for the stream page sidebar."""
+        now = datetime.datetime.now()
+        query = {
+            "$and": [
+                {"$or": [
+                    {"user_id": {"$exists": False}},
+                    {"user_id": None},
+                    {"user_id": 0},
+                ]},
+                {"$or": [
+                    {"expiry_date": None},
+                    {"expiry_date": {"$exists": False}},
+                    {"expiry_date": {"$gt": now}},
+                ]}
+            ]
+        }
+        cursor = self.col.find(query).sort("timestamp", -1)
+        return await cursor.to_list(length=200)
+
     async def get_all_links(self):
         cursor = self.col.find().sort("timestamp", -1)
         return await cursor.to_list(length=100) # Cap at 100 for safety

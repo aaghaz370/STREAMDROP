@@ -1202,47 +1202,57 @@ async def get_file_details_api(request: Request, unique_id: str):
     
     # --- Determine actual owner ---
     # Admin links from the bot have ?admin=true appended.
-    # Old uploads may have user_id=0 in DB. Combine both signals to identify owner.
-    user_id_from_db = link_data.get("user_id", 0)
-    is_admin_request = request.query_params.get("admin") == "true"
-    
-    # If user_id is 0 (old upload before user tracking) AND admin=true param is present,
-    # treat as owner. This is safe because ?admin=true only affects playlist/dashboard UX, not auth.
-    if (not user_id_from_db) and is_admin_request and Config.OWNER_ID:
-        user_id_from_db = Config.OWNER_ID
-        print(f"INFO: Resolved missing user_id to OWNER_ID via ?admin=true for {unique_id}")
-    
+    # --- Determine actual owner ---
+    # Old uploads have user_id=0 in DB (before user tracking was added).
+    # All such docs belong to the admin since they were uploaded before any user could register.
+    user_id_from_db = link_data.get("user_id", 0) or 0
+
+    # If user_id is 0 AND Config.OWNER_ID is set → this is an admin legacy file
+    is_legacy_admin_file = (user_id_from_db == 0 and Config.OWNER_ID)
+    effective_user_id = Config.OWNER_ID if is_legacy_admin_file else user_id_from_db
+    is_owner = (effective_user_id == Config.OWNER_ID)
+
+    if is_legacy_admin_file:
+        print(f"INFO: Legacy file {unique_id} — resolved user_id 0 to OWNER_ID {Config.OWNER_ID}")
+
     # Inject admin dashboard link using HMAC token
     try:
-        if user_id_from_db and user_id_from_db == Config.OWNER_ID:
+        if is_owner and Config.OWNER_ID:
             import hmac, hashlib
             secret = Config.BOT_TOKEN.encode()
             tok = hmac.new(secret, str(Config.OWNER_ID).encode(), hashlib.sha256).hexdigest()
             response_data["dashboard_link"] = f"{base_url}/dashboard/{Config.OWNER_ID}?token={tok}"
     except Exception as e:
         print(f"WARNING: Failed to generate owner dashboard link: {e}")
-    
-    # Fetch other active links from this user to build a playlist sidebar
+
+    # Fetch playlist sidebar files
     user_files = []
     try:
-        if user_id_from_db:
-            others = await db.get_user_active_links(user_id_from_db, limit=100)
-            for doc in others:
-                if str(doc["_id"]) == str(unique_id):
-                    continue
-                fname = doc.get("file_name", "Unknown")
-                mt, _ = mimetypes.guess_type(fname)
-                user_files.append({
-                    "id": str(doc["_id"]),
-                    "name": fname,
-                    "size": doc.get("file_size", ""),
-                    "stream_link": f"{base_url}/show/{doc['_id']}",
-                    "type": ("audio" if mt and mt.startswith("audio") else ("video" if mt and mt.startswith("video") else "file"))
-                })
+        if is_legacy_admin_file:
+            # Admin's legacy files — fetch all zero-user_id docs as the playlist
+            others = await db.get_active_links_legacy_admin()
+        elif effective_user_id:
+            others = await db.get_user_active_links(effective_user_id, limit=100)
+        else:
+            others = []
+
+        for doc in others:
+            if str(doc["_id"]) == str(unique_id):
+                continue
+            fname = doc.get("file_name", "Unknown")
+            mt, _ = mimetypes.guess_type(fname)
+            user_files.append({
+                "id": str(doc["_id"]),
+                "name": fname,
+                "size": doc.get("file_size", ""),
+                "stream_link": f"{base_url}/show/{doc['_id']}",
+                "type": ("audio" if mt and mt.startswith("audio") else ("video" if mt and mt.startswith("video") else "file"))
+            })
     except Exception as e:
         print(f"WARNING: Failed to fetch user_files for queue: {e}")
         user_files = []
     response_data["user_files"] = user_files
+
 
     return response_data
 
