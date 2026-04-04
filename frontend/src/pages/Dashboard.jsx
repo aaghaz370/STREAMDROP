@@ -78,8 +78,16 @@ export default function Dashboard() {
         return res.json();
       })
       .then(d => {
-        setLinks(d.links || []);
+        const ls = d.links || [];
+        setLinks(ls);
         setLoading(false);
+        // Save stats for Profile page
+        localStorage.setItem('streamdrop_stats', JSON.stringify({
+          total: d.total,
+          active: ls.filter(l => !l.is_expired).length,
+          expired: ls.filter(l => l.is_expired).length,
+          userId,
+        }));
       })
       .catch(err => {
         setError(err.message);
@@ -260,9 +268,10 @@ export default function Dashboard() {
                       <a href={link.stream_link} className="p-2 rounded-lg border border-[color:var(--border-color)] hover:border-indigo-500 hover:text-indigo-500 transition-colors" title="Stream">
                         <PlayCircle size={16} />
                       </a>
-                      <a href={`${link.dl_link}?download=true`} download className="p-2 rounded-lg border border-[color:var(--border-color)] hover:border-indigo-500 hover:text-indigo-500 transition-colors" title="Download">
+                      <button onClick={() => { window.location.href = `${link.dl_link}?download=true`; }}
+                        className="p-2 rounded-lg border border-[color:var(--border-color)] hover:border-emerald-500 hover:text-emerald-500 transition-colors" title="Download">
                         <Download size={16} />
-                      </a>
+                      </button>
                     </>
                   )}
                   {link.is_expired && (

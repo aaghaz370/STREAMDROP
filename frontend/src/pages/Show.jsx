@@ -150,7 +150,10 @@ export default function Show() {
         setData(d);
         document.title = `${d.file_name} — StreamDrop`;
         if (d.dashboard_link) localStorage.setItem('streamdrop_dash_url', d.dashboard_link);
-        
+        // Persist last stream so navigating away and back restores it
+        localStorage.setItem('streamdrop_last_stream', uniqueId);
+        localStorage.setItem('streamdrop_last_file_name', d.file_name || '');
+
         try {
           const bks = JSON.parse(localStorage.getItem(`bookmarks_${uniqueId}`) || '[]');
           setBookmarks(bks);
