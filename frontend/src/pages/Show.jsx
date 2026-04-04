@@ -104,6 +104,7 @@ export default function Show() {
       ],
       settings: ['quality', 'speed'],
       keyboard: { focused: true, global: true },
+      doubleClick: { toggles: false }, // Prevent native fullscreen toggle on double click
       autoplay: false,
     });
     
@@ -112,6 +113,9 @@ export default function Show() {
     // --- Advanced Interaction Listeners ---
     const handleDblClick = (e) => {
         if (!playerInstance.current || type !== 'video') return;
+        e.preventDefault();
+        e.stopPropagation();
+        
         const rect = p.elements.container.getBoundingClientRect();
         const clickX = e.clientX - rect.left;
         if (clickX > rect.width / 2) {
