@@ -268,10 +268,18 @@ export default function Dashboard() {
                       <a href={link.stream_link} className="p-2 rounded-lg border border-[color:var(--border-color)] hover:border-indigo-500 hover:text-indigo-500 transition-colors" title="Stream">
                         <PlayCircle size={16} />
                       </a>
-                      <a href={`${link.dl_link}?download=true`} download target="_blank" rel="noopener noreferrer"
-                        className="p-2 rounded-lg border border-[color:var(--border-color)] hover:border-emerald-500 hover:text-emerald-500 transition-colors" title="Download">
+                      <button onClick={(e) => {
+                        e.preventDefault();
+                        const a = document.createElement("a");
+                        a.href = `${link.dl_link}?download=true`;
+                        a.download = link.name || 'download';
+                        a.target = "_blank";
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                      }} className="p-2 rounded-lg border border-[color:var(--border-color)] hover:border-emerald-500 hover:text-emerald-500 transition-colors" title="Download">
                         <Download size={16} />
-                      </a>
+                      </button>
                     </>
                   )}
                   {link.is_expired && (

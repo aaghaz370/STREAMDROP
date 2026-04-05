@@ -92,3 +92,6 @@
   }
 }
 
+
+.video-fill video { object-fit: cover !important; }
+.video-fill .plyr__video-wrapper { background: transparent !important; }

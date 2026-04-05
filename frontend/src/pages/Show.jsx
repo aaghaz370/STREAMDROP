@@ -399,12 +399,12 @@ export default function Show() {
       </header>
 
       {/* Main Grid */}
-      <div className={`mx-auto p-4 md:p-6 transition-all duration-300 ease-in-out ${theaterMode ? 'max-w-[1800px]' : 'max-w-[1300px]'} flex flex-col ${theaterMode ? '' : 'lg:flex-row'} gap-6`}>
+      <div className={`mx-auto transition-all duration-300 ease-in-out ${theaterMode ? 'px-0 py-0 max-w-full w-full bg-black/95' : 'p-4 md:p-6 max-w-[1300px]'} flex flex-col ${theaterMode ? '' : 'lg:flex-row'} gap-6`}>
 
         <div className="flex flex-col flex-1 min-w-0">
 
           {/* ==== Media Viewers ==== */}
-          <div className={`w-full rounded-2xl overflow-hidden shadow-lg bg-black border border-[color:var(--border-color)] relative ${type === 'video' ? 'aspect-video min-h-[250px] md:min-h-[400px]' :
+          <div className={`w-full overflow-hidden shadow-lg bg-black border-[color:var(--border-color)] relative ${theaterMode ? 'rounded-none border-0' : 'rounded-2xl border'} ${type === 'video' ? `aspect-video min-h-[250px] md:min-h-[400px] ${objectFit === 'object-cover' ? 'video-fill' : ''}` :
             (type === 'audio' ? 'py-20 bg-[color:var(--surface-color)]' :
               (type === 'document' ? 'h-[75vh] bg-white' :
                 (type === 'image' || type === 'binary' ? 'p-6 bg-[color:var(--surface-color)]' : 'p-6')))
@@ -447,10 +447,18 @@ export default function Show() {
                 <h3 className="text-xl font-bold text-[color:var(--text-color)] mb-2">{data.file_name}</h3>
                 <p className="text-[color:var(--text-muted)] text-sm mb-2">This is a binary/application file.</p>
                 <p className="text-[color:var(--text-muted)] text-xs mb-8">{data.file_size} · Cannot be previewed in the browser</p>
-                <a href={`${data.direct_dl_link}?download=true`} download target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white bg-sky-500 hover:brightness-110 shadow-lg transition">
+                <button onClick={(e) => {
+                  e.preventDefault();
+                  const a = document.createElement("a");
+                  a.href = `${data.direct_dl_link}?download=true`;
+                  a.download = data.file_name || 'download';
+                  a.target = "_blank";
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }} className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white bg-sky-500 hover:brightness-110 shadow-lg transition">
                   <Download size={20} /> Download File
-                </a>
+                </button>
               </div>
             )}
 
@@ -513,9 +521,18 @@ export default function Show() {
               </div>
 
               <div className="flex items-start gap-3 shrink-0">
-                <a href={`${data.direct_dl_link}?download=true`} download target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white ${theme.bg} hover:brightness-110 transition shadow-md`}>
+                <button onClick={(e) => {
+                  e.preventDefault();
+                  const a = document.createElement("a");
+                  a.href = `${data.direct_dl_link}?download=true`;
+                  a.download = data.file_name || 'download';
+                  a.target = "_blank";
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                }} className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white ${theme.bg} hover:brightness-110 transition shadow-md`}>
                   <Download size={18} /> Download
-                </a>
+                </button>
               </div>
             </div>
 
@@ -548,8 +565,8 @@ export default function Show() {
                         {objectFit === 'object-contain' ? <Maximize size={16} className={theme.text} /> : <PictureInPicture size={16} className={theme.text} />}
                         {objectFit === 'object-contain' ? 'Fill' : 'Fit'}
                       </button>
-                      <button onClick={() => setTheaterMode(!theaterMode)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[color:var(--bg-color)] hover:bg-[color:var(--border-color)] font-semibold text-sm transition">
-                        <MonitorPlay size={16} className={theme.text} /> Theater
+                      <button onClick={() => setTheaterMode(!theaterMode)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-sm transition ${theaterMode ? theme.bg + ' text-white shadow-md' : 'bg-[color:var(--bg-color)] hover:bg-[color:var(--border-color)]'}`}>
+                        <MonitorPlay size={16} className={theaterMode ? 'text-white' : theme.text} /> Theater
                       </button>
                     </>
                   )}
