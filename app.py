@@ -1137,7 +1137,11 @@ async def dashboard_api(request: Request, user_id: int, token: str):
             expired  = lnk.get("is_expired", False)
             date_str = lnk.get("date_str") or "Unknown"
 
-            enc = _quote(str(f_name), safe='')
+            safe_f_name = "".join(c for c in f_name if c.isalnum() or c in (' ', '.', '_', '-')).rstrip()
+            if not safe_f_name:
+                safe_f_name = "file"
+            
+            enc = _quote(str(safe_f_name), safe='')
             dl   = f"{base}/dl/{u_id}/{enc}"
             view = f"{base}/show/{u_id}"
 

@@ -447,7 +447,7 @@ export default function Show() {
                 <h3 className="text-xl font-bold text-[color:var(--text-color)] mb-2">{data.file_name}</h3>
                 <p className="text-[color:var(--text-muted)] text-sm mb-2">This is a binary/application file.</p>
                 <p className="text-[color:var(--text-muted)] text-xs mb-8">{data.file_size} · Cannot be previewed in the browser</p>
-                <a href={`${data.direct_dl_link}?download=true`} download className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white bg-sky-500 hover:brightness-110 shadow-lg transition">
+                <a href={`${data.direct_dl_link}?download=true`} download={data.file_name || 'download'} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white bg-sky-500 hover:brightness-110 shadow-lg transition">
                   <Download size={20} /> Download File
                 </a>
               </div>
