@@ -102,7 +102,7 @@ function Layout({ children }) {
       )}
 
       {/* MAIN */}
-      <main className={`flex-1 ${!isLanding ? 'md:ml-64' : ''} w-full h-[100dvh] md:h-screen overflow-y-auto overflow-x-hidden relative pb-24 md:pb-0 scroll-smooth`}>
+      <main className={`flex-1 ${!isLanding ? 'md:ml-64 pb-24 md:pb-0' : 'pb-0'} w-full h-[100dvh] md:h-screen overflow-y-auto overflow-x-hidden relative scroll-smooth`}>
         <AnimatePresence mode="wait">
           <motion.div
             key={location.pathname}

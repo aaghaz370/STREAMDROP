@@ -74,7 +74,7 @@ export default function Landing() {
   ];
 
   return (
-    <div className="min-h-screen w-full bg-[color:var(--bg-color)] text-[color:var(--text-color)] font-sans overflow-x-hidden selection:bg-indigo-500/30 pb-10">
+    <div className="min-h-screen w-full bg-[color:var(--bg-color)] text-[color:var(--text-color)] font-sans overflow-x-hidden selection:bg-indigo-500/30">
       
       {/* ── TOP NAVBAR ── */}
       <nav className="fixed top-0 w-full z-50 bg-[color:var(--surface-color)]/80 backdrop-blur-xl border-b border-[color:var(--border-color)] transition-all">
