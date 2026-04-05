@@ -123,6 +123,7 @@ export default function Show() {
   const [showQr, setShowQr] = useState(false);
   const [sleepTimer, setSleepTimer] = useState(0);
   const [timerActive, setTimerActive] = useState(false);
+  const [showTimerMenu, setShowTimerMenu] = useState(false);
   const [copied, setCopied] = useState(false);
   const [bookmarks, setBookmarks] = useState([]);
   const [isMobile, setIsMobile] = useState(false);
@@ -178,9 +179,10 @@ export default function Show() {
     // Completely recreate player instance safely
     const p = new Plyr(videoRef.current, {
       controls: [
-        'play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume',
+        'play-large', 'play', 'rewind', 'fast-forward', 'progress', 'current-time', 'duration', 'mute', 'volume',
         'captions', 'settings', 'pip', 'airplay', 'fullscreen'
       ],
+      seekTime: 10,
       settings: ['quality', 'speed'],
       keyboard: { focused: true, global: true },
       doubleClick: { toggles: false }, // Prevent native fullscreen toggle on double click
@@ -260,6 +262,7 @@ export default function Show() {
             videoRef.current.pause();
         }
         setSleepTimer(0);
+        setShowTimerMenu(false);
         setTimerActive(false);
         clearInterval(sleepInterval.current);
       }
@@ -444,7 +447,7 @@ export default function Show() {
                           <h3 className="text-xl font-bold text-[color:var(--text-color)] mb-2">{data.file_name}</h3>
                           <p className="text-[color:var(--text-muted)] text-sm mb-2">This is a binary/application file.</p>
                           <p className="text-[color:var(--text-muted)] text-xs mb-8">{data.file_size} · Cannot be previewed in the browser</p>
-                          <a href={`${data.direct_dl_link}?download=true`} download
+                          <a href={`${data.direct_dl_link}?download=true`} download target="_blank" rel="noopener noreferrer"
                              className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white bg-sky-500 hover:brightness-110 shadow-lg transition">
                               <Download size={20} /> Download File
                           </a>
@@ -510,7 +513,7 @@ export default function Show() {
                       </div>
                       
                       <div className="flex items-start gap-3 shrink-0">
-                          <a href={`${data.direct_dl_link}?download=true`} download className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white ${theme.bg} hover:brightness-110 transition shadow-md`}>
+                          <a href={`${data.direct_dl_link}?download=true`} download target="_blank" rel="noopener noreferrer" className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white ${theme.bg} hover:brightness-110 transition shadow-md`}>
                               <Download size={18} /> Download
                           </a>
                       </div>
@@ -524,17 +527,19 @@ export default function Show() {
                                   <Check size={16} className={theme.text}/> Mark Spot
                               </button>
                               
-                              <div className="relative group">
-                                  <button className={`flex items-center gap-1.5 px-3 py-2 rounded-lg ${timerActive ? theme.bg + ' text-white' : 'bg-[color:var(--bg-color)] hover:bg-[color:var(--border-color)]'} font-semibold text-sm transition`}>
+                              <div className="relative">
+                                  <button onClick={() => setShowTimerMenu(!showTimerMenu)} className={`flex items-center gap-1.5 px-3 py-2 rounded-lg ${timerActive ? theme.bg + ' text-white' : 'bg-[color:var(--bg-color)] hover:bg-[color:var(--border-color)]'} font-semibold text-sm transition`}>
                                       <Timer size={16} className={timerActive ? 'text-white' : theme.text} /> {timerActive ? `${sleepTimer}m left` : 'Timer'}
                                   </button>
-                                  <div className="absolute top-full left-0 mt-1 py-1 w-32 bg-[color:var(--surface-color)] border border-[color:var(--border-color)] rounded-lg shadow-xl opacity-0 translate-y-1 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all z-20">
-                                      {[15, 30, 45, 60, 0].map(m => (
-                                          <button key={m} onClick={() => setSleepTimer(m)} className="w-full text-left px-4 py-2 text-sm font-semibold hover:bg-[color:var(--bg-color)]">
-                                              {m === 0 ? 'Off' : `${m} Mins`}
-                                          </button>
-                                      ))}
-                                  </div>
+                                  {showTimerMenu && (
+                                    <div className="absolute bottom-full left-0 mb-2 py-1 w-32 bg-[color:var(--surface-color)] border border-[color:var(--border-color)] rounded-lg shadow-xl z-20">
+                                        {[15, 30, 45, 60, 0].map(m => (
+                                            <button key={m} onClick={() => { setSleepTimer(m); setShowTimerMenu(false); }} className="w-full text-left px-4 py-2 text-sm font-semibold hover:bg-[color:var(--bg-color)]">
+                                                {m === 0 ? 'Off' : `${m} Mins`}
+                                            </button>
+                                        ))}
+                                    </div>
+                                  )}
                               </div>
                               
                               {type === 'video' && (
