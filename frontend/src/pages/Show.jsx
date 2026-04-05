@@ -405,9 +405,9 @@ export default function Show() {
 
           {/* ==== Media Viewers ==== */}
           <div className={`w-full rounded-2xl overflow-hidden shadow-lg bg-black border border-[color:var(--border-color)] relative ${type === 'video' ? 'aspect-video min-h-[250px] md:min-h-[400px]' :
-              (type === 'audio' ? 'py-20 bg-[color:var(--surface-color)]' :
-                (type === 'document' ? 'h-[75vh] bg-white' :
-                  (type === 'image' || type === 'binary' ? 'p-6 bg-[color:var(--surface-color)]' : 'p-6')))
+            (type === 'audio' ? 'py-20 bg-[color:var(--surface-color)]' :
+              (type === 'document' ? 'h-[75vh] bg-white' :
+                (type === 'image' || type === 'binary' ? 'p-6 bg-[color:var(--surface-color)]' : 'p-6')))
             }`}>
             {type === 'video' && (
               <video ref={videoRef} playsInline preload="auto" className={`w-full h-full absolute inset-0 ${objectFit} transition-all duration-300`}>
@@ -545,7 +545,7 @@ export default function Show() {
                   {type === 'video' && (
                     <>
                       <button onClick={() => setObjectFit(prev => prev === 'object-contain' ? 'object-cover' : 'object-contain')} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[color:var(--bg-color)] hover:bg-[color:var(--border-color)] font-semibold text-sm transition">
-                        {objectFit === 'object-contain' ? <Maximize size={16} className={theme.text} /> : <PictureInPicture size={16} className={theme.text} />} 
+                        {objectFit === 'object-contain' ? <Maximize size={16} className={theme.text} /> : <PictureInPicture size={16} className={theme.text} />}
                         {objectFit === 'object-contain' ? 'Fill' : 'Fit'}
                       </button>
                       <button onClick={() => setTheaterMode(!theaterMode)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[color:var(--bg-color)] hover:bg-[color:var(--border-color)] font-semibold text-sm transition">
