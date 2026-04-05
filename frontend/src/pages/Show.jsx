@@ -447,18 +447,9 @@ export default function Show() {
                 <h3 className="text-xl font-bold text-[color:var(--text-color)] mb-2">{data.file_name}</h3>
                 <p className="text-[color:var(--text-muted)] text-sm mb-2">This is a binary/application file.</p>
                 <p className="text-[color:var(--text-muted)] text-xs mb-8">{data.file_size} · Cannot be previewed in the browser</p>
-                <button onClick={(e) => {
-                  e.preventDefault();
-                  const a = document.createElement("a");
-                  a.href = `${data.direct_dl_link}?download=true`;
-                  a.download = data.file_name || 'download';
-                  a.target = "_blank";
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                }} className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white bg-sky-500 hover:brightness-110 shadow-lg transition">
+                <a href={`${data.direct_dl_link}?download=true`} download className="flex items-center gap-2 px-8 py-3 rounded-xl font-bold text-white bg-sky-500 hover:brightness-110 shadow-lg transition">
                   <Download size={20} /> Download File
-                </button>
+                </a>
               </div>
             )}
 
@@ -521,18 +512,9 @@ export default function Show() {
               </div>
 
               <div className="flex items-start gap-3 shrink-0">
-                <button onClick={(e) => {
-                  e.preventDefault();
-                  const a = document.createElement("a");
-                  a.href = `${data.direct_dl_link}?download=true`;
-                  a.download = data.file_name || 'download';
-                  a.target = "_blank";
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                }} className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white ${theme.bg} hover:brightness-110 transition shadow-md`}>
+                <a href={`${data.direct_dl_link}?download=true`} download className={`flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-sm text-white ${theme.bg} hover:brightness-110 transition shadow-md`}>
                   <Download size={18} /> Download
-                </button>
+                </a>
               </div>
             </div>
 
