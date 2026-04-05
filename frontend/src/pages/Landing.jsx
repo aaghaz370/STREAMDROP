@@ -1,8 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { 
-  Play, Download, Shield, Zap, Globe, Smartphone, MonitorPlay, 
-  Settings, Clock, Lock, Cloud, Cpu, Server, Sparkles, ChevronRight, 
+import {
+  Play, Download, Shield, Zap, Globe, Smartphone, MonitorPlay,
+  Settings, Clock, Lock, Cloud, Cpu, Server, Sparkles, ChevronRight,
   CheckCircle2, Heart, Code, Boxes
 } from 'lucide-react';
 import logoImg from '../assets/logo.jpg';
@@ -75,7 +75,7 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen w-full bg-[color:var(--bg-color)] text-[color:var(--text-color)] font-sans overflow-x-hidden selection:bg-indigo-500/30">
-      
+
       {/* ── TOP NAVBAR ── */}
       <nav className="fixed top-0 w-full z-50 bg-[color:var(--surface-color)]/80 backdrop-blur-xl border-b border-[color:var(--border-color)] transition-all">
         <div className="max-w-7xl mx-auto px-5 lg:px-8 h-16 sm:h-20 flex items-center justify-between">
@@ -97,29 +97,29 @@ export default function Landing() {
 
       {/* ── HERO SECTION ── */}
       <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 px-5 lg:px-8 max-w-7xl mx-auto flex flex-col items-center text-center">
-        
+
         {/* Background Gradients */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-[400px] bg-gradient-to-b from-indigo-500/20 via-purple-500/10 to-transparent blur-[100px] -z-10 pointer-events-none" />
-        
+
         <motion.div initial="hidden" animate="show" variants={STAGGER} className="max-w-4xl w-full flex flex-col items-center">
-          
+
           <motion.div variants={FADE_UP} className="mb-6 lg:mb-8 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[color:var(--surface-color)] border border-[color:var(--border-color)] shadow-sm">
             <Sparkles className="w-4 h-4 text-amber-500 animate-pulse" />
             <span className="text-xs sm:text-sm font-bold text-[color:var(--text-color)]">Introducing the Ultimate Telegram Streaming Bot</span>
           </motion.div>
-          
+
           <motion.h1 variants={FADE_UP} className="text-5xl sm:text-6xl lg:text-8xl font-black tracking-tighter leading-[1.1] mb-6">
             Bypass Limits. <br className="hidden sm:block" />
             <span className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent drop-shadow-sm">
               Stream Instantly.
             </span>
           </motion.h1>
-          
+
           <motion.p variants={FADE_UP} className="text-base sm:text-xl text-[color:var(--text-muted)] max-w-2xl font-medium leading-relaxed mb-10">
             Forward any movie, video, or audio file from Telegram to <b className="text-[color:var(--text-color)]">StreamDrop</b>.
             Within milliseconds, receive an ultra-fast, securely encrypted streaming dashboard link with zero waiting time.
           </motion.p>
-          
+
           <motion.div variants={FADE_UP} className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <a href={BOT_LINK} target="_blank" rel="noopener noreferrer" className="w-full sm:w-auto flex items-center justify-center gap-3 bg-[color:var(--text-color)] text-[color:var(--bg-color)] px-8 py-4 rounded-2xl font-black text-lg hover:scale-105 active:scale-95 transition-transform">
               <Play className="fill-current w-5 h-5" /> Start Streaming Free
@@ -135,24 +135,24 @@ export default function Landing() {
       {/* ── METRICS / TRUST BAR ── */}
       <section className="px-5 max-w-6xl mx-auto mb-24">
         <div className="bg-[color:var(--surface-color)] border border-[color:var(--border-color)] rounded-3xl p-6 sm:p-10 shadow-xl shadow-indigo-500/5 backdrop-blur-sm relative overflow-hidden">
-           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center relative z-10">
-              <div>
-                <h3 className="text-3xl sm:text-4xl font-black text-indigo-500 mb-1">0ms</h3>
-                <p className="text-xs sm:text-sm font-bold text-[color:var(--text-muted)] uppercase tracking-wider">Wait Time</p>
-              </div>
-              <div>
-                <h3 className="text-3xl sm:text-4xl font-black text-purple-500 mb-1">∞</h3>
-                <p className="text-xs sm:text-sm font-bold text-[color:var(--text-muted)] uppercase tracking-wider">Bandwidth</p>
-              </div>
-              <div>
-                <h3 className="text-3xl sm:text-4xl font-black text-pink-500 mb-1">100%</h3>
-                <p className="text-xs sm:text-sm font-bold text-[color:var(--text-muted)] uppercase tracking-wider">Encrypted</p>
-              </div>
-              <div>
-                <h3 className="text-3xl sm:text-4xl font-black text-amber-500 mb-1">Web</h3>
-                <p className="text-xs sm:text-sm font-bold text-[color:var(--text-muted)] uppercase tracking-wider">App Required</p>
-              </div>
-           </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center relative z-10">
+            <div>
+              <h3 className="text-3xl sm:text-4xl font-black text-indigo-500 mb-1">0ms</h3>
+              <p className="text-xs sm:text-sm font-bold text-[color:var(--text-muted)] uppercase tracking-wider">Wait Time</p>
+            </div>
+            <div>
+              <h3 className="text-3xl sm:text-4xl font-black text-purple-500 mb-1">∞</h3>
+              <p className="text-xs sm:text-sm font-bold text-[color:var(--text-muted)] uppercase tracking-wider">Bandwidth</p>
+            </div>
+            <div>
+              <h3 className="text-3xl sm:text-4xl font-black text-pink-500 mb-1">100%</h3>
+              <p className="text-xs sm:text-sm font-bold text-[color:var(--text-muted)] uppercase tracking-wider">Encrypted</p>
+            </div>
+            <div>
+              <h3 className="text-3xl sm:text-4xl font-black text-amber-500 mb-1">Web</h3>
+              <p className="text-xs sm:text-sm font-bold text-[color:var(--text-muted)] uppercase tracking-wider">App Required</p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -180,7 +180,7 @@ export default function Landing() {
               </ul>
             </div>
           ))}
-          
+
           {/* 6th Card: Developer Info */}
           <div className="bg-gradient-to-br from-indigo-900/40 via-purple-900/20 to-[color:var(--bg-color)] border border-indigo-500/30 rounded-3xl p-6 lg:p-8 flex flex-col relative overflow-hidden">
             <div className="w-14 h-14 rounded-2xl bg-indigo-500/20 border border-indigo-500/50 flex items-center justify-center mb-6 z-10">
@@ -188,19 +188,19 @@ export default function Landing() {
             </div>
             <h3 className="text-2xl font-black text-white mb-6 z-10">System Status</h3>
             <ul className="space-y-3 flex-1 z-10">
-                <li className="flex items-start gap-3 text-sm sm:text-base font-medium text-indigo-200">
-                  <Boxes size={18} className="shrink-0 mt-0.5" /> <span>Framework: React + Vite + Tailwind V4</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm sm:text-base font-medium text-indigo-200">
-                  <Server size={18} className="shrink-0 mt-0.5" /> <span>Backend: FastAPI Python + Motor Async</span>
-                </li>
-                <li className="flex items-start gap-3 text-sm sm:text-base font-medium text-indigo-200">
-                  <Shield size={18} className="shrink-0 mt-0.5" /> <span>Database: Dual MongoDB Synchronized</span>
-                </li>
+              <li className="flex items-start gap-3 text-sm sm:text-base font-medium text-indigo-200">
+                <Boxes size={18} className="shrink-0 mt-0.5" /> <span>Framework: React + Vite + Tailwind V4</span>
+              </li>
+              <li className="flex items-start gap-3 text-sm sm:text-base font-medium text-indigo-200">
+                <Server size={18} className="shrink-0 mt-0.5" /> <span>Backend: FastAPI Python + Motor Async</span>
+              </li>
+              <li className="flex items-start gap-3 text-sm sm:text-base font-medium text-indigo-200">
+                <Shield size={18} className="shrink-0 mt-0.5" /> <span>Database: Dual MongoDB Synchronized</span>
+              </li>
             </ul>
             <div className="mt-8 pt-6 border-t border-indigo-500/20 z-10">
-               <p className="text-sm font-bold text-indigo-300">Powered by <span className="text-white">Univora</span></p>
-               <p className="text-xs text-indigo-400/70 mt-1">Dev: Rolex Sir</p>
+              <p className="text-sm font-bold text-indigo-300">Powered by <span className="text-white">Univora</span></p>
+              <p className="text-xs text-indigo-400/70 mt-1">Dev: Rolex Sir</p>
             </div>
             {/* Background Blob */}
             <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-indigo-500/20 blur-3xl rounded-full pointer-events-none" />
@@ -244,7 +244,7 @@ export default function Landing() {
           <a href={BOT_LINK} target="_blank" rel="noopener noreferrer" className="bg-[color:var(--text-color)] text-[color:var(--bg-color)] px-8 py-3 rounded-xl font-bold text-lg hover:scale-105 transition-transform mb-16">
             Start using StreamDrop
           </a>
-          
+
           <div className="w-full flex flex-col md:flex-row items-center justify-between pt-8 border-t border-[color:var(--border-color)] text-sm font-semibold text-[color:var(--text-muted)] gap-4">
             <p>© 2026 StreamDrop. Powered by <a href="https://univora.site" className="text-indigo-400 hover:text-indigo-300">Univora</a>.</p>
             <p className="flex items-center gap-1">Made with <Heart size={14} className="text-red-500 fill-red-500" /> by Rolex Sir</p>

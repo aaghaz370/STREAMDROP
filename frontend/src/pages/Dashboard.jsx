@@ -7,34 +7,34 @@ import {
 } from 'lucide-react';
 
 const SORT_OPTIONS = [
-  { key: 'newest',  label: 'Newest First' },
-  { key: 'oldest',  label: 'Oldest First' },
-  { key: 'az',      label: 'A → Z' },
-  { key: 'za',      label: 'Z → A' },
+  { key: 'newest', label: 'Newest First' },
+  { key: 'oldest', label: 'Oldest First' },
+  { key: 'az', label: 'A → Z' },
+  { key: 'za', label: 'Z → A' },
   { key: 'size_desc', label: 'Largest First' },
-  { key: 'size_asc',  label: 'Smallest First' },
+  { key: 'size_asc', label: 'Smallest First' },
 ];
 
 const TYPE_FILTERS = [
-  { key: 'all',      label: 'All Types' },
-  { key: 'video',    label: 'Video' },
-  { key: 'audio',    label: 'Audio' },
-  { key: 'image',    label: 'Image' },
+  { key: 'all', label: 'All Types' },
+  { key: 'video', label: 'Video' },
+  { key: 'audio', label: 'Audio' },
+  { key: 'image', label: 'Image' },
   { key: 'document', label: 'Document' },
-  { key: 'file',     label: 'Other' },
+  { key: 'file', label: 'Other' },
 ];
 
 const EXPIRE_FILTERS = [
-  { key: 'all',     label: 'All Files' },
-  { key: 'active',  label: 'Active Only' },
+  { key: 'all', label: 'All Files' },
+  { key: 'active', label: 'Active Only' },
   { key: 'expired', label: 'Expired Only' },
 ];
 
 function typeIcon(mt) {
-  if (mt === 'audio')    return <Music size={18} />;
-  if (mt === 'image')    return <ImageIcon size={18} />;
+  if (mt === 'audio') return <Music size={18} />;
+  if (mt === 'image') return <ImageIcon size={18} />;
   if (mt === 'document') return <FileText size={18} />;
-  if (mt === 'video')    return <Film size={18} />;
+  if (mt === 'video') return <Film size={18} />;
   return <FileText size={18} />;
 }
 
@@ -43,13 +43,13 @@ export default function Dashboard() {
   const [searchParams] = useSearchParams();
   const tokenFromUrl = searchParams.get('token');
 
-  const [links, setLinks]  = useState([]);
+  const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError]  = useState(null);
+  const [error, setError] = useState(null);
 
   // Filter state
-  const [q, setQ]           = useState('');
-  const [sort, setSort]     = useState('newest');
+  const [q, setQ] = useState('');
+  const [sort, setSort] = useState('newest');
   const [typeFilter, setTypeFilter] = useState('all');
   const [expireFilter, setExpireFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
@@ -105,22 +105,22 @@ export default function Dashboard() {
     if (typeFilter !== 'all') arr = arr.filter(l => l.media_type === typeFilter);
 
     // Expire filter
-    if (expireFilter === 'active')  arr = arr.filter(l => !l.is_expired);
+    if (expireFilter === 'active') arr = arr.filter(l => !l.is_expired);
     if (expireFilter === 'expired') arr = arr.filter(l => l.is_expired);
 
     // Sort
     switch (sort) {
-      case 'newest':    arr.sort((a, b) => b.timestamp - a.timestamp); break;
-      case 'oldest':    arr.sort((a, b) => a.timestamp - b.timestamp); break;
-      case 'az':        arr.sort((a, b) => a.name.localeCompare(b.name)); break;
-      case 'za':        arr.sort((a, b) => b.name.localeCompare(a.name)); break;
+      case 'newest': arr.sort((a, b) => b.timestamp - a.timestamp); break;
+      case 'oldest': arr.sort((a, b) => a.timestamp - b.timestamp); break;
+      case 'az': arr.sort((a, b) => a.name.localeCompare(b.name)); break;
+      case 'za': arr.sort((a, b) => b.name.localeCompare(a.name)); break;
       case 'size_desc': arr.sort((a, b) => (b.size_bytes || 0) - (a.size_bytes || 0)); break;
-      case 'size_asc':  arr.sort((a, b) => (a.size_bytes || 0) - (b.size_bytes || 0)); break;
+      case 'size_asc': arr.sort((a, b) => (a.size_bytes || 0) - (b.size_bytes || 0)); break;
     }
     return arr;
   }, [links, q, sort, typeFilter, expireFilter]);
 
-  const activeCount  = links.filter(l => !l.is_expired).length;
+  const activeCount = links.filter(l => !l.is_expired).length;
   const expiredCount = links.filter(l => l.is_expired).length;
 
   if (loading) return (
@@ -174,7 +174,7 @@ export default function Dashboard() {
           {/* Filter toggle */}
           <button onClick={() => setShowFilters(!showFilters)}
             className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition ${showFilters ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-[color:var(--surface-color)] border-[color:var(--border-color)] text-[color:var(--text-muted)] hover:text-[color:var(--text-color)]'}`}>
-            <Filter size={15}/> Filters
+            <Filter size={15} /> Filters
           </button>
         </div>
 
@@ -238,7 +238,7 @@ export default function Dashboard() {
                 {/* Name + icon */}
                 <div className="col-span-5 flex items-center gap-3 min-w-0 w-full">
                   <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${link.is_expired ? 'bg-red-500/10 text-red-500' : 'bg-indigo-500/10 text-indigo-500'}`}>
-                    {link.is_expired ? <Clock size={16}/> : typeIcon(link.media_type)}
+                    {link.is_expired ? <Clock size={16} /> : typeIcon(link.media_type)}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-sm text-[color:var(--text-color)] truncate">{link.name}</p>

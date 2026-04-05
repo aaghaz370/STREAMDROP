@@ -45,9 +45,9 @@ function Layout({ children }) {
   }, []);
 
   const navLinks = [
-    { name: 'Dashboard', path: dashUrl,   icon: <Home size={22} />, match: '/dashboard' },
-    { name: 'My Stream', path: '/show',   icon: <PlaySquare size={22} />, match: '/show' },
-    { name: 'Profile',   path: '/profile', icon: <User size={22} />,      match: '/profile' },
+    { name: 'Dashboard', path: dashUrl, icon: <Home size={22} />, match: '/dashboard' },
+    { name: 'My Stream', path: '/show', icon: <PlaySquare size={22} />, match: '/show' },
+    { name: 'Profile', path: '/profile', icon: <User size={22} />, match: '/profile' },
   ];
 
   return (
@@ -57,35 +57,34 @@ function Layout({ children }) {
       {!isLanding && (
         <aside className="hidden md:flex flex-col w-64 border-r border-[color:var(--border-color)] bg-[color:var(--surface-color)] fixed h-full z-50">
           <div className="p-6 flex items-center gap-3">
-          <img src={logoImg} alt="StreamDrop" className="w-8 h-8 rounded-xl object-cover shadow-lg" />
-          <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500">StreamDrop</h1>
-        </div>
+            <img src={logoImg} alt="StreamDrop" className="w-8 h-8 rounded-xl object-cover shadow-lg" />
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-500">StreamDrop</h1>
+          </div>
 
-        <nav className="flex-1 px-4 space-y-2 mt-4">
-          {navLinks.map((link) => {
-            const isActive = location.pathname.startsWith(link.match);
-            return (
-              <Link key={link.name} to={link.path}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
-                  isActive
-                  ? 'bg-indigo-500/10 text-[color:var(--primary-color)] font-semibold border border-indigo-500/20'
-                  : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-color)] hover:text-[color:var(--text-color)]'
-                }`}>
-                {link.icon}
-                <span>{link.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
+          <nav className="flex-1 px-4 space-y-2 mt-4">
+            {navLinks.map((link) => {
+              const isActive = location.pathname.startsWith(link.match);
+              return (
+                <Link key={link.name} to={link.path}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${isActive
+                      ? 'bg-indigo-500/10 text-[color:var(--primary-color)] font-semibold border border-indigo-500/20'
+                      : 'text-[color:var(--text-muted)] hover:bg-[color:var(--bg-color)] hover:text-[color:var(--text-color)]'
+                    }`}>
+                  {link.icon}
+                  <span>{link.name}</span>
+                </Link>
+              );
+            })}
+          </nav>
 
-        <div className="p-6 border-t border-[color:var(--border-color)]">
-          <button onClick={() => setIsDark(!isDark)}
-            className="flex w-full items-center gap-3 px-4 py-3 rounded-xl hover:bg-[color:var(--bg-color)] transition-colors text-[color:var(--text-muted)]">
-            {isDark ? <Sun size={20} /> : <Moon size={20} />}
-            <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
-          </button>
-        </div>
-      </aside>
+          <div className="p-6 border-t border-[color:var(--border-color)]">
+            <button onClick={() => setIsDark(!isDark)}
+              className="flex w-full items-center gap-3 px-4 py-3 rounded-xl hover:bg-[color:var(--bg-color)] transition-colors text-[color:var(--text-muted)]">
+              {isDark ? <Sun size={20} /> : <Moon size={20} />}
+              <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+            </button>
+          </div>
+        </aside>
       )}
 
       {/* MOBILE HEADER */}
@@ -119,22 +118,21 @@ function Layout({ children }) {
       {/* MOBILE BOTTOM NAV */}
       {!isLanding && (
         <div className="md:hidden fixed bottom-0 left-0 w-full z-50">
-        <div className="bg-[color:var(--surface-color)]/80 backdrop-blur-xl border-t border-[color:var(--border-color)] px-6 py-3 pb-6 flex justify-between items-center rounded-t-3xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)]">
-          {navLinks.map((link) => {
-            const isActive = location.pathname.startsWith(link.match);
-            return (
-              <Link key={link.name} to={link.path}
-                className={`flex flex-col items-center gap-1 p-2 rounded-full transition-all duration-300 ${
-                  isActive ? 'text-[color:var(--primary-color)] scale-110' : 'text-[color:var(--text-muted)]'
-                }`}>
-                <div className={`p-1.5 rounded-full ${isActive ? 'bg-indigo-500/10' : 'bg-transparent'}`}>
-                  {link.icon}
-                </div>
-              </Link>
-            );
-          })}
+          <div className="bg-[color:var(--surface-color)]/80 backdrop-blur-xl border-t border-[color:var(--border-color)] px-6 py-3 pb-6 flex justify-between items-center rounded-t-3xl shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.5)]">
+            {navLinks.map((link) => {
+              const isActive = location.pathname.startsWith(link.match);
+              return (
+                <Link key={link.name} to={link.path}
+                  className={`flex flex-col items-center gap-1 p-2 rounded-full transition-all duration-300 ${isActive ? 'text-[color:var(--primary-color)] scale-110' : 'text-[color:var(--text-muted)]'
+                    }`}>
+                  <div className={`p-1.5 rounded-full ${isActive ? 'bg-indigo-500/10' : 'bg-transparent'}`}>
+                    {link.icon}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </div>
-      </div>
       )}
     </div>
   );
@@ -145,12 +143,12 @@ function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
-          <Route path="/"                  element={<Landing />} />
+          <Route path="/" element={<Landing />} />
           <Route path="/dashboard/:userId" element={<Dashboard />} />
-          <Route path="/show/:uniqueId"    element={<Show />} />
-          <Route path="/show"              element={<ShowRedirect />} />
-          <Route path="/profile"           element={<Profile />} />
-          <Route path="*"                  element={<NotFound />} />
+          <Route path="/show/:uniqueId" element={<Show />} />
+          <Route path="/show" element={<ShowRedirect />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
     </BrowserRouter>
