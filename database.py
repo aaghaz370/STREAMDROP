@@ -86,11 +86,14 @@ class Database:
         if link:
             # Check Expiry
             expiry = link.get("expiry_date")
-            if expiry and expiry < datetime.datetime.now():
-                # Link Expired
-                # Optional: Delete it? No, keep for now, just deny access. Or delete to save space?
-                # User said "link 24hr ke baad expire ho jayega". Usually implies it stops working.
-                # Let's return None to simulate 404.
+            is_expired = False
+            if expiry:
+                if expiry.tzinfo is None:
+                    is_expired = expiry < datetime.datetime.now()
+                else:
+                    is_expired = expiry < datetime.datetime.now(datetime.timezone.utc)
+            
+            if is_expired:
                 return None, None
             return link["msg_id"], link.get("backups", {})
         return None, None
@@ -99,10 +102,14 @@ class Database:
         link = await self.col.find_one({"_id": unique_id})
         if link:
             expiry = link.get("expiry_date")
-            if expiry and expiry < datetime.datetime.now():
-                link["is_expired"] = True  # Mark as expired but still return data
-            else:
-                link["is_expired"] = False
+            is_expired = False
+            if expiry:
+                if expiry.tzinfo is None:
+                    is_expired = expiry < datetime.datetime.now()
+                else:
+                    is_expired = expiry < datetime.datetime.now(datetime.timezone.utc)
+            
+            link["is_expired"] = is_expired
             return link
         return None
 

@@ -38,3 +38,5 @@ class Config:
     
     # API key to control setplan externally
     PAYMENT_API_KEY = os.environ.get("PAYMENT_API_KEY", "Univora_SecureKey_12345")
+
+
