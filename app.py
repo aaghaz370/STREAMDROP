@@ -35,6 +35,7 @@ import math
 # Project ki dusri files se important cheezein import karo
 from config import Config
 from database import db
+from subscription import get_plan_status, increment_user_usage, PLANS
 import logger as L  # Log channel integration
 
 # =====================================================================================
@@ -495,8 +496,6 @@ We use a separate bot to securely handle all premiums and payments.
         await cb.message.edit_text(text, reply_markup=buttons)
         
     await cb.answer()
-
-from subscription import get_plan_status, increment_user_usage, PLANS
 
 # ... (Previous imports)
 
@@ -1184,7 +1183,6 @@ async def get_profile_api(request: Request, user_id: int, token: str):
         raise HTTPException(status_code=403, detail="Token validation failed.")
 
     user_data = await db.get_user_data(user_id)
-    from subscription import get_plan_status
     plan_info = await get_plan_status(user_id)
     
     return {
