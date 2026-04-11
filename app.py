@@ -1363,6 +1363,9 @@ async def get_file_details_api(request: Request, unique_id: str):
 _file_meta_cache = {}
 
 class ByteStreamer:
+    # RAM Cache for 0 buffering
+    _chunk_cache = {} 
+
     def __init__(self, c: Client):
         self.client = c
 
@@ -1371,105 +1374,102 @@ class ByteStreamer:
         from pyrogram.file_id import FileType
         if f.file_type == FileType.PHOTO:
             return raw.types.InputPhotoFileLocation(
-                id=f.media_id,
-                access_hash=f.access_hash,
-                file_reference=f.file_reference,
-                thumb_size=f.thumbnail_size or "y"
+                id=f.media_id, access_hash=f.access_hash,
+                file_reference=f.file_reference, thumb_size=f.thumbnail_size or "y"
             )
         return raw.types.InputDocumentFileLocation(
-            id=f.media_id,
-            access_hash=f.access_hash,
-            file_reference=f.file_reference,
-            thumb_size=f.thumbnail_size
+            id=f.media_id, access_hash=f.access_hash,
+            file_reference=f.file_reference, thumb_size=f.thumbnail_size
         )
 
-    async def fetch_chunk(self, ms, loc, offset, limit):
+    async def fetch_chunk(self, client_or_session, loc, offset, limit):
         for attempt in range(5):
             try:
-                r = await ms.invoke(
-                    raw.functions.upload.GetFile(location=loc, offset=offset, limit=limit),
-                    retries=1
+                r = await asyncio.wait_for(
+                    client_or_session.invoke(raw.functions.upload.GetFile(location=loc, offset=offset, limit=limit), retries=2),
+                    timeout=15
                 )
                 if isinstance(r, raw.types.upload.File):
                     return r.bytes
-                elif isinstance(r, raw.types.upload.FileCdnRedirect):
-                    print("DEBUG: CDN Redirect")
-                    break
-            except (FloodWait) as e:
-                await asyncio.sleep(e.value + 1)
-            except Exception as e:
-                await asyncio.sleep(0.5)
+            except FloodWait as e:
+                await asyncio.sleep(min(e.value, 3) + 1)
+            except Exception:
+                await asyncio.sleep(0.3)
         return None
 
-    async def yield_file(self, f: FileId, i: int, start_byte: int, end_byte: int, chunk_size: int):
-        c = self.client
-        work_loads[i] += 1
+    async def yield_file(self, f: FileId, client_id: int, start_byte: int, end_byte: int, chunk_size: int):
+        work_loads[client_id] = work_loads.get(client_id, 0) + 1
         
-        # Session Setup
-        ms = None
-        for _ in range(3):
-            try:
-                ms = c.media_sessions.get(f.dc_id)
-                if ms is None:
-                    if f.dc_id != await c.storage.dc_id():
-                        ak = await Auth(c, f.dc_id, await c.storage.test_mode()).create()
-                        ms = Session(c, f.dc_id, ak, await c.storage.test_mode(), is_media=True)
-                        await ms.start()
-                        ea = await c.invoke(raw.functions.auth.ExportAuthorization(dc_id=f.dc_id))
-                        await ms.invoke(raw.functions.auth.ImportAuthorization(id=ea.id, bytes=ea.bytes))
-                    else:
-                        ms = c.session
-                    c.media_sessions[f.dc_id] = ms
-                break
-            except Exception as e:
-                await asyncio.sleep(0.5)
+        # unique_id is needed for cache — we can derive it from the running context or pass it
+        # Since tc is reconstructed per request or cached in class_cache, we can assume
+        # a unique_id is available in the scope of stream_media. 
+        # But wait, yield_file is a generator. We should find the unique_id.
+        # Let's use the file_id media_id + access_hash as a stable cache key
+        uid_key = f"{f.media_id}_{f.access_hash}"
         
-        if not ms:
-            work_loads[i] -= 1
-            return 
-
         loc = await self.get_location(f)
+        current_pos = start_byte
+        bytes_remaining = end_byte - start_byte + 1
         
-        try:
-            current_pos = start_byte
-            bytes_remaining = end_byte - start_byte + 1
+        # Parallel Cluster Setup
+        all_cls = [bot] + list(multi_clients.values())
+        clients = list({id(c): c for c in all_cls}.values())
+        
+        prefetch_tasks = {} # chunk_index -> task
+        prefetch_limit = 4  # 4 * 1MB = 4MB pre-load (User asked for 2MB+, so 4MB is safer)
+        
+        async def fetch_distributed(c_idx):
+            ckey = (uid_key, c_idx)
+            if ckey in self._chunk_cache: return self._chunk_cache[ckey]
             
+            pri_id = c_idx % len(clients)
+            for rotate in range(min(4, len(clients))):
+                try:
+                    c = clients[(pri_id + rotate) % len(clients)]
+                    if not c.is_initialized: continue
+                    ms = c.media_sessions.get(f.dc_id) if hasattr(c, 'media_sessions') else c.session
+                    if not ms: ms = c.session
+                    
+                    data = await self.fetch_chunk(ms, loc, c_idx * chunk_size, chunk_size)
+                    if data:
+                        if len(self._chunk_cache) > 200: self._chunk_cache.clear()
+                        self._chunk_cache[ckey] = data
+                        return data
+                except: continue
+            return None
+
+        try:
             while bytes_remaining > 0:
                 chunk_index = current_pos // chunk_size
-                req_offset = chunk_index * chunk_size
                 
-                chunk_data = await self.fetch_chunk(ms, loc, req_offset, chunk_size)
+                if chunk_index in prefetch_tasks:
+                    chunk_data = await prefetch_tasks.pop(chunk_index)
+                else:
+                    for t in prefetch_tasks.values(): t.cancel()
+                    prefetch_tasks = {}
+                    chunk_data = await fetch_distributed(chunk_index)
                 
-                if chunk_data is None:
-                    print(f"CRITICAL: Failed to fetch chunk at {req_offset}")
-                    break
+                if chunk_data is None: break
                 
-                offset_in_chunk = current_pos % chunk_size
+                # Start prefetching next 4 chunks (4MB) parallelly
+                for lookahead in range(1, prefetch_limit + 1):
+                    next_idx = chunk_index + lookahead
+                    if next_idx not in prefetch_tasks and (current_pos + (lookahead * chunk_size) < end_byte + chunk_size):
+                        prefetch_tasks[next_idx] = asyncio.create_task(fetch_distributed(next_idx))
                 
-                if offset_in_chunk >= len(chunk_data):
-                     break
-
-                # Slice what we need
-                available = len(chunk_data) - offset_in_chunk
-                to_take = min(available, bytes_remaining)
+                off = current_pos % chunk_size
+                if off >= len(chunk_data): break
+                take = min(len(chunk_data) - off, bytes_remaining)
+                yield chunk_data[off : off + take]
                 
-                payload = chunk_data[offset_in_chunk : offset_in_chunk + to_take]
+                current_pos += take
+                bytes_remaining -= take
                 
-                yield payload
-                
-                sent_len = len(payload)
-                current_pos += sent_len
-                bytes_remaining -= sent_len
-                
-                if sent_len == 0:
-                    break
-
         except Exception as e:
             print(f"Stream Error: {e}")
-            import traceback
-            traceback.print_exc()
         finally:
-            work_loads[i] -= 1
+            for t in prefetch_tasks.values(): t.cancel()
+            work_loads[client_id] -= 1
 
 @app.get("/dl/{unique_id}/{fname}")
 async def stream_media(r:Request, unique_id: str, fname: str):
