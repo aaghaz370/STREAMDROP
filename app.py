@@ -84,6 +84,7 @@ async def lifespan(app: FastAPI):
 
         # Ensure we know about the channels
         # force_refresh_dialogs removed as it is not supported for bots
+        await initialize_clients()
 
         print(f"Verifying storage channel ({Config.STORAGE_CHANNEL})...")
         try:
@@ -209,30 +210,56 @@ class TokenParser:
     """ Environment variables se MULTI_TOKENs ko parse karta hai. """
     @staticmethod
     def parse_from_env():
-        return {
-            c + 1: t
-            for c, (_, t) in enumerate(
-                filter(lambda n: n[0].startswith("MULTI_TOKEN"), sorted(os.environ.items()))
-            )
-        }
+        tokens = {}
+        # Try single MULTI_TOKENS variable (comma separated)
+        m_tokens = os.environ.get("MULTI_TOKENS", "")
+        if m_tokens:
+            for i, t in enumerate(m_tokens.split(",")):
+                if t.strip(): tokens[i + 1] = t.strip()
+        
+        # Also try MULTI_TOKEN_1, MULTI_TOKEN_2 style
+        for k, v in os.environ.items():
+            if k.startswith("MULTI_TOKEN_"):
+                try:
+                    tid = int(k.split("_")[-1])
+                    tokens[tid] = v.strip()
+                except: continue
+        return tokens
+
 
 async def start_client(client_id, bot_token):
-    """ Ek naye client bot ko start karta hai. """
+    """ Ek naye client bot ko start karta hai aur uspar worker handler lagata hai. """
     try:
         print(f"Attempting to start Client: {client_id}")
-        client = await Client(
-            name=str(client_id), 
+        client = Client(
+            name=f"Worker_{client_id}", 
             api_id=Config.API_ID, 
             api_hash=Config.API_HASH,
             bot_token=bot_token, 
-            no_updates=True, 
+            no_updates=False, # Taaki message ka reply de sake
             in_memory=True
-        ).start()
+        )
+        
+        # --- WORKER BOT HANDLER ---
+        @client.on_message(filters.private)
+        async def worker_reply(c: Client, m: Message):
+             from pyrogram.types import InlineKeyboardMarkup as IKM, InlineKeyboardButton as IKB
+             try:
+                 main_bot = Config.BOT_USERNAME or "StreamDropBot"
+                 await m.reply_text(
+                     "**👋 Hello! I am a Service Worker Bot.**\n\n"
+                     "I handle background file delivery to ensure **Unlimited Speed** and **Zero Buffering** for all users.\n\n"
+                     "👉 **To use the service, please go to our Main Bot:**",
+                     reply_markup=IKM([[IKB("🚀 OPEN MAIN BOT", url=f"https://t.me/{main_bot}")]])
+                 )
+             except Exception: pass
+
+        await client.start()
         work_loads[client_id] = 0
         multi_clients[client_id] = client
         print(f"✅ Client {client_id} started successfully.")
     except Exception as e:
-        print(f"!!! CRITICAL ERROR: Failed to start Client {client_id} - Error: {e}")
+        print(f"❌ Failed to start Client {client_id}: {e}")
 
 async def initialize_clients():
     """ Saare additional clients ko initialize karta hai. """
@@ -957,6 +984,37 @@ async def stats_command(client: Client, message: Message):
         f"💿 **Database:** MongoDB Atlas"
     )
 
+@bot.on_message(filters.command("workers") & filters.private)
+async def workers_status(client: Client, message: Message):
+    """ Shows the health and workload of the entire bot cluster. """
+    if message.from_user.id != Config.OWNER_ID:
+        return
+
+    text = "🚀 **STREAMDROP CLUSTER STATUS**\n"
+    text += "────────────────────\n"
+    
+    # Main Bot
+    m_load = work_loads.get(0, 0)
+    text += f"🏠 **Main Bot:** `Healthy` | 📺 `{m_load}` active\n"
+    
+    # Worker Bots
+    online = 0
+    all_tokens = TokenParser.parse_from_env()
+    tokens_count = len(all_tokens)
+    
+    for i in range(1, tokens_count + 1):
+        c = multi_clients.get(i)
+        load = work_loads.get(i, 0)
+        status = "✅ Active" if c and c.is_initialized else "❌ Offline"
+        if c and c.is_initialized: online += 1
+        text += f"🤖 **Worker {i}:** `{status}` | 📺 `{load}` streams\n"
+    
+    text += "────────────────────\n"
+    text += f"📊 **Bot Health:** `{online + 1}/{tokens_count + 1}` Online\n"
+    text += f"🔥 **Total Cluster Load:** `{sum(work_loads.values())}` streams\n"
+    
+    await message.reply_text(text, quote=True)
+
 @bot.on_message(filters.command("ban") & filters.private)
 async def ban_command(client: Client, message: Message):
     if message.from_user.id != Config.OWNER_ID:
@@ -1453,7 +1511,33 @@ class ByteStreamer:
             for t in prefetch_tasks.values(): t.cancel()
             work_loads[client_id] -= 1
 
-@app.get("/dl/{unique_id}/{fname}")
+@bot.on_message(filters.command("workers") & filters.user(Config.OWNER_ID))
+async def workers_status(client: Client, message: Message):
+    """ Shows the health and workload of the entire bot cluster. """
+    text = "🚀 **STREAMDROP CLUSTER STATUS**\n"
+    text += "────────────────────\n"
+    
+    # Main Bot
+    m_load = work_loads.get(0, 0)
+    text += f"🏠 **Main Bot:** `Healthy` | 📺 `{m_load}` active\n"
+    
+    # Worker Bots
+    online = 0
+    tokens_count = len(TokenParser.parse_from_env())
+    
+    for i in range(1, tokens_count + 1):
+        c = multi_clients.get(i)
+        load = work_loads.get(i, 0)
+        status = "✅ Active" if c and c.is_initialized else "❌ Offline"
+        if c and c.is_initialized: online += 1
+        text += f"🤖 **Worker {i}:** `{status}` | 📺 `{load}` streams\n"
+    
+    text += "────────────────────\n"
+    text += f"📊 **Bot Health:** `{online + 1}/{tokens_count + 1}` Online\n"
+    text += f"🔥 **Total Cluster Load:** `{sum(work_loads.values())}` streams\n"
+    
+    await message.reply_text(text, quote=True)
+\n@app.get("/dl/{unique_id}/{fname}")
 async def stream_media(r:Request, unique_id: str, fname: str):
     # Retrieve Message ID from DB
     message_id, backups = await db.get_link(unique_id)
