@@ -1462,18 +1462,13 @@ class ByteStreamer:
         current_pos = start_byte
         bytes_remaining = end_byte - start_byte + 1
         
-        # Use cluster for prefetching ONLY
-        all_cls = [bot] + list(multi_clients.values())
-        clients = list({id(c): c for c in all_cls}.values())
-        
         prefetch_tasks = {}
         
         async def do_fetch(c_idx):
             ckey = (f.media_id, c_idx)
             if ckey in self._chunk_cache: return self._chunk_cache[ckey]
-            
-            c = clients[c_idx % len(clients)]
-            data = await self.fetch_chunk(c, loc, c_idx * chunk_size, chunk_size)
+            # Always use main bot — it's the only one guaranteed to have correct DC auth
+            data = await self.fetch_chunk(bot, loc, c_idx * chunk_size, chunk_size)
             if data:
                 if len(self._chunk_cache) > 100: self._chunk_cache.clear()
                 self._chunk_cache[ckey] = data
@@ -1483,7 +1478,6 @@ class ByteStreamer:
             while bytes_remaining > 0:
                 chunk_index = current_pos // chunk_size
                 
-                # Immediate Fetch or Prefetch result
                 if chunk_index in prefetch_tasks:
                     chunk_data = await prefetch_tasks.pop(chunk_index)
                 else:
@@ -1491,7 +1485,7 @@ class ByteStreamer:
                 
                 if not chunk_data: break
                 
-                # Prefetch next 2 chunks (User requested 2MB, using 2 * 512KB for stability)
+                # Prefetch next 2 chunks (2 * 512KB = 1MB ahead)
                 for lookahead in range(1, 3):
                     n_idx = chunk_index + lookahead
                     if n_idx not in prefetch_tasks and (current_pos + (lookahead * chunk_size) < end_byte + chunk_size):
