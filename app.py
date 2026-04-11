@@ -120,6 +120,22 @@ async def lifespan(app: FastAPI):
             await L.log_bot_start()
         asyncio.create_task(_delayed_start_log())
 
+        # --- ANTI-SLEEP: Self-Ping every 14 minutes to prevent Render free tier sleep ---
+        async def _self_ping_loop():
+            import httpx
+            await asyncio.sleep(30)  # Wait for server to be fully ready
+            url = f"{Config.BASE_URL.rstrip('/')}/health"
+            print(f"🔁 Anti-Sleep Keeper started → pinging {url} every 14 mins")
+            while True:
+                try:
+                    async with httpx.AsyncClient(timeout=10) as hc:
+                        resp = await hc.get(url)
+                        print(f"✅ Self-ping OK: {resp.status_code}")
+                except Exception as e:
+                    print(f"⚠️ Self-ping failed: {e}")
+                await asyncio.sleep(14 * 60)  # 14 minutes
+        asyncio.create_task(_self_ping_loop())
+
         print("--- Lifespan: Startup safaltapoorvak poora hua. ---")
     
     except Exception as e:
@@ -654,6 +670,9 @@ Simply forward any file to me to get a Stream Link.
 
 ⚡ **System**
 └ `/broadcast message` - (Coming Soon)
+
+🤖 **Cluster Management**
+└ `/workers` - View all bot workers status & live load
 ━━━━━━━━━━━━━━━━━━
 """
         final_text = user_commands + admin_commands
