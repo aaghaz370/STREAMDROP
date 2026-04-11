@@ -1531,16 +1531,19 @@ async def stream_media(r:Request, unique_id: str, fname: str):
             raise HTTPException(416)
         
         rl = ub - fb + 1
-        cs = 1024 * 1024  # 1MB chunks (Telegram max limit for MTProto GetFile)
+        cs = 512 * 1024  # 1MB chunks (Telegram max limit for MTProto GetFile)
         
         body = tc.yield_file(fid, client_id, fb, ub, cs)
         
         sc = 206 if rh else 200
         disp = "attachment" if r.query_params.get("download") else "inline"
+        from urllib.parse import quote
+        safe_fname = quote(_fname)
+        
         hdrs = {
             "Content-Type": _mime,
             "Accept-Ranges": "bytes",
-            "Content-Disposition": f'{disp}; filename="{_fname}"',
+            "Content-Disposition": f"{disp}; filename*=UTF-8''{safe_fname}",
             "Content-Length": str(rl)
         }
         if rh: hdrs["Content-Range"] = f"bytes {fb}-{ub}/{fsize}"
