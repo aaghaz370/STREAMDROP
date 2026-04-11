@@ -1537,7 +1537,8 @@ async def workers_status(client: Client, message: Message):
     text += f"🔥 **Total Cluster Load:** `{sum(work_loads.values())}` streams\n"
     
     await message.reply_text(text, quote=True)
-\n@app.get("/dl/{unique_id}/{fname}")
+
+@app.get("/dl/{unique_id}/{fname}")
 async def stream_media(r:Request, unique_id: str, fname: str):
     # Retrieve Message ID from DB
     message_id, backups = await db.get_link(unique_id)
