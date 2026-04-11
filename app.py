@@ -1577,7 +1577,8 @@ async def stream_media(r:Request, unique_id: str, fname: str):
         if unique_id in _file_meta_cache:
             fid, fsize, _mime, _fname = _file_meta_cache[unique_id]
         else:
-            msg = await c.get_messages(Config.STORAGE_CHANNEL, mid)
+            # ALWAYS use main bot for metadata — worker bots are NOT admins of STORAGE_CHANNEL
+            msg = await bot.get_messages(Config.STORAGE_CHANNEL, mid)
             m = msg.document or msg.video or msg.audio or msg.photo
             if not m or msg.empty: raise FileNotFoundError
             fid = FileId.decode(m.file_id)
@@ -1588,7 +1589,6 @@ async def stream_media(r:Request, unique_id: str, fname: str):
             if not fsize: fsize = 0
             _mime = getattr(m,'mime_type',None) or _mt.guess_type(fname)[0] or 'application/octet-stream'
             _fname = getattr(m,'file_name',None) or fname
-            # Cache for 60 minutes (file_id can change on dc migration but rare)
             _file_meta_cache[unique_id] = (fid, fsize, _mime, _fname)
         
         # --- Parse Range header ---
