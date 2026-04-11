@@ -1421,6 +1421,591 @@ async def get_file_details_api(request: Request, unique_id: str):
 _file_meta_cache = {}
 
 class ByteStreamer:
+    _chunk_cache = {}   # Shared RAM cache: {(media_id, chunk_idx): bytes}
+    _media_sessions = {}  # {(client_id, dc_id): Session}
+
+    def __init__(self, c: Client):
+        self.client = c
+
+    @staticmethod
+    async def get_location(f: FileId):
+        from pyrogram.file_id import FileType
+        if f.file_type == FileType.PHOTO:
+            return raw.types.InputPhotoFileLocation(
+                id=f.media_id, access_hash=f.access_hash,
+                file_reference=f.file_reference, thumb_size=f.thumbnail_size or "y"
+            )
+        return raw.types.InputDocumentFileLocation(
+            id=f.media_id, access_hash=f.access_hash,
+            file_reference=f.file_reference, thumb_size=f.thumbnail_size
+        )
+
+    @classmethod
+    async def get_media_session(cls, client: Client, dc_id: int):
+        """Get or create a DC-authenticated media session for the client."""
+        ckey = (id(client), dc_id)
+        if ckey in cls._media_sessions:
+            return cls._media_sessions[ckey]
+
+        client_dc = await client.storage.dc_id()
+        if dc_id == client_dc:
+            # Same DC — use the existing session directly
+            cls._media_sessions[ckey] = client.session
+            return client.session
+
+        # Different DC — need to create a new authenticated session
+        try:
+            auth = await Auth(client, dc_id, await client.storage.test_mode()).create()
+            session = Session(
+                client, dc_id, auth,
+                await client.storage.test_mode(), is_media=True
+            )
+            await session.start()
+            exported = await client.invoke(
+                raw.functions.auth.ExportAuthorization(dc_id=dc_id)
+            )
+            await session.invoke(
+                raw.functions.auth.ImportAuthorization(
+                    id=exported.id, bytes=exported.bytes
+                )
+            )
+            cls._media_sessions[ckey] = session
+            print(f"✅ Media session created: client={id(client)} dc={dc_id}")
+            return session
+        except Exception as e:
+            print(f"⚠️ Media session failed for dc={dc_id}: {e}. Falling back to main session.")
+            cls._media_sessions[ckey] = client.session
+            return client.session
+
+    async def fetch_chunk_from_client(self, client: Client, f: FileId, loc, offset: int, limit: int):
+        """Fetch a chunk using this specific client with proper DC session."""
+        for attempt in range(3):
+            try:
+                ms = await self.get_media_session(client, f.dc_id)
+                r = await asyncio.wait_for(
+                    ms.invoke(
+                        raw.functions.upload.GetFile(location=loc, offset=offset, limit=limit),
+                        retries=2
+                    ),
+                    timeout=12
+                )
+                if isinstance(r, raw.types.upload.File):
+                    return r.bytes
+                break
+            except FloodWait as e:
+                await asyncio.sleep(min(e.value, 3) + 1)
+            except Exception as e:
+                if attempt == 2:
+                    print(f"fetch_chunk failed after 3 attempts: {e}")
+                await asyncio.sleep(0.5 * (attempt + 1))
+        return None
+
+    async def yield_file(self, f: FileId, client_id: int, start_byte: int, end_byte: int, chunk_size: int):
+        work_loads[client_id] = work_loads.get(client_id, 0) + 1
+        loc = await self.get_location(f)
+        current_pos = start_byte
+        bytes_remaining = end_byte - start_byte + 1
+
+        # Build the ordered client rotation list
+        # client_id determines which bot "owns" this stream request
+        master_client = multi_clients.get(client_id) or bot
+        all_cls = [master_client, bot] + [c for c in multi_clients.values() if c is not master_client]
+        clients = list({id(c): c for c in all_cls}.values())
+
+        prefetch_tasks = {}
+
+        async def do_fetch(c_idx: int):
+            ckey = (f.media_id, c_idx)
+            if ckey in self._chunk_cache:
+                return self._chunk_cache[ckey]
+
+            # Round-robin client selection for parallel prefetching
+            client = clients[c_idx % len(clients)]
+            data = await self.fetch_chunk_from_client(client, f, loc, c_idx * chunk_size, chunk_size)
+
+            # Fallback to main bot if worker fails
+            if data is None and client is not bot:
+                data = await self.fetch_chunk_from_client(bot, f, loc, c_idx * chunk_size, chunk_size)
+
+            if data is not None:
+                if len(self._chunk_cache) > 200:
+                    self._chunk_cache.clear()
+                self._chunk_cache[ckey] = data
+            return data
+
+        try:
+            while bytes_remaining > 0:
+                chunk_index = current_pos // chunk_size
+
+                if chunk_index in prefetch_tasks:
+                    chunk_data = await prefetch_tasks.pop(chunk_index)
+                else:
+                    chunk_data = await do_fetch(chunk_index)
+
+                if not chunk_data:
+                    break
+
+                # Aggressive prefetch: 4 chunks = 2MB ahead
+                for lookahead in range(1, 5):
+                    n_idx = chunk_index + lookahead
+                    if n_idx not in prefetch_tasks and (current_pos + (lookahead * chunk_size) < end_byte + chunk_size):
+                        prefetch_tasks[n_idx] = asyncio.create_task(do_fetch(n_idx))
+
+                off = current_pos % chunk_size
+                take = min(len(chunk_data) - off, bytes_remaining)
+                if take <= 0:
+                    break
+
+                yield chunk_data[off: off + take]
+                current_pos += take
+                bytes_remaining -= take
+
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            print(f"Streaming Aborted: {e}")
+        finally:
+            for t in prefetch_tasks.values():
+                t.cancel()
+            work_loads[client_id] -= 1
+
+@bot.on_message(filters.command("workers") & filters.private)
+async def workers_status(client: Client, message: Message):
+    """ Shows the health and workload of the entire bot cluster. """
+    if message.from_user.id != Config.OWNER_ID:
+        return
+
+    text = "🚀 **STREAMDROP CLUSTER STATUS**\n"
+    text += "────────────────────\n"
+    
+    # Main Bot
+    m_load = work_loads.get(0, 0)
+    text += f"🏠 **Main Bot:** `Healthy` | 📺 `{m_load}` active\n"
+    
+    # Worker Bots
+    online = 0
+    all_tokens = TokenParser.parse_from_env()
+    tokens_count = len(all_tokens)
+    
+    for i in range(1, tokens_count + 1):
+        c = multi_clients.get(i)
+        load = work_loads.get(i, 0)
+        status = "✅ Active" if c and c.is_initialized else "❌ Offline"
+        if c and c.is_initialized: online += 1
+        text += f"🤖 **Worker {i}:** `{status}` | 📺 `{load}` streams\n"
+    
+    text += "────────────────────\n"
+    text += f"📊 **Bot Health:** `{online + 1}/{tokens_count + 1}` Online\n"
+    text += f"🔥 **Total Cluster Load:** `{sum(work_loads.values())}` streams\n"
+    
+    await message.reply_text(text, quote=True)
+
+@bot.on_message(filters.command("ban") & filters.private)
+async def ban_command(client: Client, message: Message):
+    if message.from_user.id != Config.OWNER_ID:
+        return
+        
+    if len(message.command) < 2:
+        await message.reply_text("Usage: `/ban user_id`")
+        return
+        
+    try:
+        user_id = int(message.command[1])
+        await db.ban_user(user_id)
+        await message.reply_text(f"🚫 User `{user_id}` has been BANNED.")
+        asyncio.create_task(L.log_ban_action(message.from_user, user_id, "ban"))
+    except Exception as e:
+        await message.reply_text(f"Error: {e}")
+
+@bot.on_message(filters.command("unban") & filters.private)
+async def unban_command(client: Client, message: Message):
+    if message.from_user.id != Config.OWNER_ID:
+        return
+        
+    if len(message.command) < 2:
+        await message.reply_text("Usage: `/unban user_id`")
+        return
+        
+    try:
+        user_id = int(message.command[1])
+        await db.unban_user(user_id)
+        await message.reply_text(f"✅ User `{user_id}` has been UNBANNED.")
+        asyncio.create_task(L.log_ban_action(message.from_user, user_id, "unban"))
+    except Exception as e:
+        await message.reply_text(f"Error: {e}")
+
+@bot.on_chat_member_updated(filters.chat(Config.STORAGE_CHANNEL))
+async def simple_gatekeeper(c: Client, m_update: ChatMemberUpdated):
+    try:
+        if(m_update.new_chat_member and m_update.new_chat_member.status==enums.ChatMemberStatus.MEMBER):
+            u=m_update.new_chat_member.user
+            if u.id==Config.OWNER_ID or u.is_self: return
+            print(f"Gatekeeper: Kicking {u.id}"); await c.ban_chat_member(Config.STORAGE_CHANNEL,u.id); await c.unban_chat_member(Config.STORAGE_CHANNEL,u.id)
+    except Exception as e: print(f"Gatekeeper Error: {e}")
+
+async def cleanup_channel(c: Client):
+    print("Gatekeeper: Running cleanup..."); allowed={Config.OWNER_ID,c.me.id}
+    try:
+        async for m in c.get_chat_members(Config.STORAGE_CHANNEL):
+            if m.user.id in allowed: continue
+            if m.status in [enums.ChatMemberStatus.ADMINISTRATOR,enums.ChatMemberStatus.OWNER]: continue
+            try: print(f"Cleanup: Kicking {m.user.id}"); await c.ban_chat_member(Config.STORAGE_CHANNEL,m.user.id); await asyncio.sleep(1)
+            except FloodWait as e: await asyncio.sleep(e.value)
+            except Exception as e: print(f"Cleanup Error: {e}")
+    except Exception as e: print(f"Cleanup Error: {e}")
+
+async def send_startup_broadcast():
+    """
+    Sends a restart notification to all users when bot starts.
+    Runs in background, doesn't block startup.
+    """
+    try:
+        # Wait 5 seconds for bot to fully initialize
+        await asyncio.sleep(5)
+        
+        print("🔔 Starting Startup Broadcast...")
+        
+        # Get all users from database
+        users = await db.get_all_users()
+        total_users = len(users)
+        
+        if total_users == 0:
+            print("ℹ️ No users to broadcast to.")
+            return
+        
+        # Beautiful restart message
+        restart_message = """
+🔄 **STREAMDROP BOT RESTARTED** 🔄
+
+✅ **Bot is now LIVE and fully operational!**
+
+🚀 **What's New:**
+• Faster file processing
+• Improved streaming performance
+• Enhanced stability
+
+💡 **All your files are safe** and ready to stream!
+
+Need help? Contact: @Univora88
+
+__Powered by Univora | Dev: @rolexsir_8__
+"""
+        
+        success = 0
+        blocked = 0
+        failed = 0
+        
+        # Send to all users
+        for user in users:
+            try:
+                user_id = user["_id"]
+                await bot.send_message(user_id, restart_message)
+                success += 1
+                await asyncio.sleep(0.05)  # Prevent FloodWait (20 msgs/second)
+                
+            except FloodWait as e:
+                print(f"⏳ FloodWait: Sleeping {e.value}s...")
+                await asyncio.sleep(e.value)
+                # Retry after wait
+                try:
+                    await bot.send_message(user_id, restart_message)
+                    success += 1
+                except:
+                    failed += 1
+                    
+            except Exception as e:
+                error_str = str(e).lower()
+                if "blocked" in error_str or "user is deactivated" in error_str:
+                    blocked += 1
+                else:
+                    failed += 1
+        
+        # Final report
+        print(f"✅ Startup Broadcast Complete!")
+        print(f"   └─ Total Users: {total_users}")
+        print(f"   └─ Success: {success}")
+        print(f"   └─ Blocked/Deleted: {blocked}")
+        print(f"   └─ Failed: {failed}")
+        
+    except Exception as e:
+        print(f"⚠️ Startup Broadcast Error: {e}")
+        # Don't crash bot, just log error
+
+# =====================================================================================
+# --- FASTAPI WEB SERVER ---
+# =====================================================================================
+ 
+@app.get("/health")
+async def health_check():
+    """
+    This route provides a 200 OK response for uptime monitors.
+    """
+    return {"status": "ok", "message": "Server is healthy and running!"}
+
+@app.get("/api/dashboard/{user_id}", response_class=JSONResponse)
+async def dashboard_api(request: Request, user_id: int, token: str):
+    import hmac as _hmac, hashlib, mimetypes as _mt, traceback
+    from urllib.parse import quote as _quote
+
+    # 1. Validate Token (HMAC)
+    try:
+        secret = Config.BOT_TOKEN.encode()
+        expected = _hmac.new(secret, str(user_id).encode(), hashlib.sha256).hexdigest()
+        if not _hmac.compare_digest(token, expected):
+            raise HTTPException(status_code=403, detail="Invalid Token.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"DASHBOARD TOKEN ERROR: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=403, detail="Token validation failed.")
+
+    # 2. Fetch links — for admin/owner, also include legacy docs with user_id=0
+    try:
+        is_owner = (user_id == Config.OWNER_ID)
+        
+        links = await db.get_all_user_links_with_status(user_id)
+        
+        # If owner and no results found with their user_id, also pull legacy (user_id=0 or null) docs
+        if is_owner and not links:
+            print(f"INFO: Owner has 0 links with user_id={user_id}, fetching legacy docs.")
+            links = await db.get_all_links_legacy_admin()
+            
+    except Exception as e:
+        print(f"DASHBOARD DB ERROR: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"DB fetch failed: {str(e)[:200]}")
+
+    # 3. Format for frontend
+    base = Config.BASE_URL.rstrip('/')
+    formatted = []
+    try:
+        for lnk in links:
+            f_name   = lnk.get("file_name") or "Unknown"
+            f_size   = lnk.get("file_size") or "Unknown"
+            u_id     = lnk.get("_id")
+            ts       = lnk.get("timestamp", 0)
+            expiry   = lnk.get("expiry_date")
+            expired  = lnk.get("is_expired", False)
+            date_str = lnk.get("date_str") or "Unknown"
+
+            safe_f_name = "".join(c for c in f_name if c.isalnum() or c in (' ', '.', '_', '-')).rstrip()
+            if not safe_f_name:
+                safe_f_name = "file"
+            
+            enc = _quote(str(safe_f_name), safe='')
+            dl   = f"{base}/dl/{u_id}/{enc}"
+            view = f"{base}/show/{u_id}"
+
+            mime, _ = _mt.guess_type(f_name)
+            if   mime and mime.startswith("video"):  mtype = "video"
+            elif mime and mime.startswith("audio"):  mtype = "audio"
+            elif mime and mime.startswith("image"):  mtype = "image"
+            elif mime == "application/pdf":          mtype = "document"
+            else:                                    mtype = "file"
+
+            formatted.append({
+                "id":         str(u_id),
+                "name":       f_name,
+                "size":       f_size,
+                "size_bytes": lnk.get("file_size_bytes", 0),
+                "date":       date_str,
+                "dl_link":    dl,
+                "stream_link": view,
+                "timestamp":  ts,
+                "expiry":     expiry.strftime('%d %b %Y') if expiry else "Never",
+                "is_expired": expired,
+                "media_type": mtype,
+            })
+    except Exception as e:
+        print(f"DASHBOARD FORMAT ERROR: {e}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Format error: {str(e)[:200]}")
+
+    return {"links": formatted, "total": len(formatted)}
+
+
+@app.get("/api/profile/{user_id}", response_class=JSONResponse)
+async def get_profile_api(request: Request, user_id: int, token: str):
+    import hmac as _hmac, hashlib
+    try:
+        secret = Config.BOT_TOKEN.encode()
+        expected = _hmac.new(secret, str(user_id).encode(), hashlib.sha256).hexdigest()
+        if not _hmac.compare_digest(token, expected):
+            raise HTTPException(status_code=403, detail="Invalid Token.")
+    except Exception:
+        raise HTTPException(status_code=403, detail="Token validation failed.")
+
+    user_data = await db.get_user_data(user_id)
+    from subscription import get_plan_status
+    plan_info = await get_plan_status(user_id)
+    
+    return {
+        "user_id": user_id,
+        "plan_info": plan_info,
+        "trial_used": user_data.get("trial_used", False)
+    }
+
+
+@app.post("/api/trial/activate/{user_id}", response_class=JSONResponse)
+async def activate_trial_api(request: Request, user_id: int, token: str):
+    import hmac as _hmac, hashlib, datetime
+    try:
+        secret = Config.BOT_TOKEN.encode()
+        expected = _hmac.new(secret, str(user_id).encode(), hashlib.sha256).hexdigest()
+        if not _hmac.compare_digest(token, expected):
+            raise HTTPException(status_code=403, detail="Invalid Token.")
+    except Exception:
+        raise HTTPException(status_code=403, detail="Token validation failed.")
+
+    user_data = await db.get_user_data(user_id)
+    
+    # Owners don't need trial
+    if user_id == Config.OWNER_ID:
+        raise HTTPException(status_code=400, detail="Owner already has unlimited access.")
+
+    if user_data.get("trial_used"):
+        raise HTTPException(status_code=400, detail="Trial already consumed.")
+        
+    current_plan = user_data.get("plan", "free")
+    if current_plan not in ("free", None) and current_plan != "trial":
+        raise HTTPException(status_code=400, detail="You already have an active premium plan.")
+
+    # Activate 7 days trial
+    expiry = datetime.datetime.now() + datetime.timedelta(days=7)
+    await db.activate_trial(user_id, expiry)
+    
+    return {"status": "success", "message": "7 Days Premium Trial Activated!"}
+@app.get("/api/file/{unique_id}", response_class=JSONResponse)
+async def get_file_details_api(request: Request, unique_id: str):
+    # db.get_link_full directly returns data without Telegram API, preventing "Access Denied" on refresh due to FloodWaits
+    link_data = await db.get_link_full(unique_id)
+    
+    if not link_data:
+        raise HTTPException(status_code=404, detail="Link not found.")
+
+    # Expired link: return 410 with a proper message instead of generic 404
+    if link_data.get("is_expired"):
+        raise HTTPException(status_code=410, detail="This link has expired. Please share the file again in the bot to get a new link.")
+    file_name = link_data.get("file_name")
+    if not file_name:
+        file_name = "file"
+        
+    file_size = link_data.get("file_size")
+    if not file_size:
+        file_size = "Unknown Size"
+    
+    import mimetypes
+    mime_type, _ = mimetypes.guess_type(file_name)
+    mime_type = mime_type or "application/octet-stream"
+    
+    safe_file_name = "".join(c for c in file_name if c.isalnum() or c in (' ', '.', '_', '-')).rstrip()
+    if not safe_file_name:
+        safe_file_name = "file"
+    
+    # URL Encoding for streaming links
+    from urllib.parse import quote
+    encoded_file_name = quote(file_name, safe='')
+    
+    base_url = Config.BASE_URL.strip()
+    if not base_url.startswith(('http://', 'https://')):
+        base_url = f"https://{base_url}"
+    if base_url.startswith("http://") and "localhost" not in base_url and "127.0.0.1" not in base_url:
+        base_url = base_url.replace("http://", "https://", 1)
+    base_url = base_url.rstrip('/')
+        
+    direct_dl_link = f"{base_url}/dl/{unique_id}/{encoded_file_name}"
+    
+    # Format intents correctly
+    # VLC mobile needs specific action and scheme
+    try:
+        scheme, path = direct_dl_link.split("://", 1)
+    except ValueError:
+        scheme, path = "http", direct_dl_link
+        
+    vlc_mobile = f"intent://{path}#Intent;scheme={scheme};action=android.intent.action.VIEW;package=org.videolan.vlc;type=video/*;end;"
+    mx_mobile = f"intent://{path}#Intent;scheme={scheme};action=android.intent.action.VIEW;package=com.mxtech.videoplayer.ad;type=video/*;end;"
+    
+    response_data = {
+        "file_name": file_name,
+        "file_size": file_size,
+        "is_media": mime_type.startswith(("video", "audio")),
+        "direct_dl_link": direct_dl_link,
+        "embed_link": f"{base_url}/embed/{unique_id}",
+        "mx_player_link": mx_mobile,
+        "vlc_player_link_mobile": vlc_mobile,
+        "vlc_player_link_pc": f"vlc://{direct_dl_link}",
+        "playit_link": f"playit://playerv2/video?url={direct_dl_link}",
+        "dashboard_link": None  # will be set below if admin
+    }
+    
+    # --- Resolve user identity (crash-safe, type-safe) ---
+    raw_uid = link_data.get("user_id")
+    try:
+        stored_uid = int(raw_uid) if (raw_uid is not None and str(raw_uid).strip() not in ('', 'None', 'null')) else 0
+    except (ValueError, TypeError):
+        stored_uid = 0
+
+    owner_id = int(Config.OWNER_ID) if Config.OWNER_ID else 0
+    # File belongs to owner if user_id matches OWNER_ID, OR if user_id=0 (legacy pre-tracking upload)
+    is_owner_file = (owner_id != 0) and (stored_uid == owner_id or stored_uid == 0)
+
+    print(f"FILE_API DEBUG: uid={unique_id} raw_uid={raw_uid!r} stored={stored_uid} owner={owner_id} is_owner={is_owner_file}")
+
+    # Generate admin dashboard link
+    if is_owner_file and owner_id:
+        try:
+            import hmac as _hm, hashlib as _hl
+            _tok = _hm.new(Config.BOT_TOKEN.encode(), str(owner_id).encode(), _hl.sha256).hexdigest()
+            response_data["dashboard_link"] = f"{base_url}/dashboard/{owner_id}?token={_tok}"
+        except Exception as _e:
+            print(f"WARNING dashboard_link: {_e}")
+
+    # Fetch playlist sidebar — crash-safe, handles large collections
+    user_files = []
+    try:
+        if is_owner_file:
+            # Fetch legacy (user_id=0) docs AND any newer files stored under owner_id
+            others = await db.get_active_links_legacy_admin()
+            if owner_id:
+                try:
+                    extra = await db.get_user_active_links(owner_id, limit=200)
+                    seen = {str(d["_id"]) for d in others}
+                    for ex in extra:
+                        if str(ex["_id"]) not in seen:
+                            others.append(ex)
+                except Exception as _em:
+                    print(f"WARNING extra owner_files: {_em}")
+            print(f"FILE_API DEBUG: owner playlist count={len(others)}")
+        elif stored_uid:
+            others = await db.get_user_active_links(stored_uid, limit=100)
+        else:
+            others = []
+
+        for doc in others:
+            if str(doc.get("_id")) == str(unique_id):
+                continue
+            fname = doc.get("file_name") or "Unknown"
+            mt, _ = mimetypes.guess_type(fname)
+            user_files.append({
+                "id":          str(doc["_id"]),
+                "name":        fname,
+                "size":        doc.get("file_size", ""),
+                "stream_link": f"{base_url}/show/{doc['_id']}",
+                "type": ("audio" if mt and mt.startswith("audio") else
+                         ("video" if mt and mt.startswith("video") else "file"))
+            })
+        print(f"FILE_API DEBUG: user_files={len(user_files)}")
+    except Exception as e:
+        print(f"WARNING: Failed to fetch user_files for queue: {e}")
+        user_files = []
+    response_data["user_files"] = user_files
+
+
+    return response_data
+
+
+# In-memory cache for Telegram file metadata — avoids expensive API calls on every seek
+_file_meta_cache = {}
+
+class ByteStreamer:
     _chunk_cache = {} 
 
     def __init__(self, c: Client):
