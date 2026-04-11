@@ -789,10 +789,17 @@ async def handle_file_upload(message: Message, user_id: int):
              file_size_bytes = media.file_size
              mime_type = "image/jpeg"
         else:
-             file_name = getattr(media, "file_name", "Unknown_File")
+             # Media detection with robust fallbacks for Reels/No-name files
+             file_name = getattr(media, "file_name", None)
              file_size_bytes = getattr(media, "file_size", 0)
              mime_type = getattr(media, "mime_type", "application/octet-stream") or "application/octet-stream"
+             if not file_name:
+                 import mimetypes
+                 ext = mimetypes.guess_extension(mime_type) or (".mp4" if "video" in mime_type else ".mp3" if "audio" in mime_type else ".bin")
+                 file_name = f"Media_{unique_id}{ext}"
 
+        # Sanitization: Ensure file_name is a string and safe for headers
+        file_name = str(file_name).replace('"', '').replace("'", "")
         file_size = get_readable_file_size(file_size_bytes)
         
         # Calculate exact Link Expiry Date
