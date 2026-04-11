@@ -1363,7 +1363,6 @@ async def get_file_details_api(request: Request, unique_id: str):
 _file_meta_cache = {}
 
 class ByteStreamer:
-    # RAM Cache for 0 buffering
     _chunk_cache = {} 
 
     def __init__(self, c: Client):
@@ -1382,91 +1381,74 @@ class ByteStreamer:
             file_reference=f.file_reference, thumb_size=f.thumbnail_size
         )
 
-    async def fetch_chunk(self, client_or_session, loc, offset, limit):
-        for attempt in range(5):
+    async def fetch_chunk(self, client, loc, offset, limit):
+        # Native safe fetch
+        for _ in range(3):
             try:
                 r = await asyncio.wait_for(
-                    client_or_session.invoke(raw.functions.upload.GetFile(location=loc, offset=offset, limit=limit), retries=2),
-                    timeout=15
+                    client.invoke(raw.functions.upload.GetFile(location=loc, offset=offset, limit=limit), retries=2),
+                    timeout=10
                 )
                 if isinstance(r, raw.types.upload.File):
                     return r.bytes
+                break
             except FloodWait as e:
                 await asyncio.sleep(min(e.value, 3) + 1)
-            except Exception:
-                await asyncio.sleep(0.3)
+            except:
+                await asyncio.sleep(0.5)
         return None
 
     async def yield_file(self, f: FileId, client_id: int, start_byte: int, end_byte: int, chunk_size: int):
         work_loads[client_id] = work_loads.get(client_id, 0) + 1
-        
-        # unique_id is needed for cache — we can derive it from the running context or pass it
-        # Since tc is reconstructed per request or cached in class_cache, we can assume
-        # a unique_id is available in the scope of stream_media. 
-        # But wait, yield_file is a generator. We should find the unique_id.
-        # Let's use the file_id media_id + access_hash as a stable cache key
-        uid_key = f"{f.media_id}_{f.access_hash}"
-        
         loc = await self.get_location(f)
         current_pos = start_byte
         bytes_remaining = end_byte - start_byte + 1
         
-        # Parallel Cluster Setup
+        # Use cluster for prefetching ONLY
         all_cls = [bot] + list(multi_clients.values())
         clients = list({id(c): c for c in all_cls}.values())
         
-        prefetch_tasks = {} # chunk_index -> task
-        prefetch_limit = 4  # 4 * 1MB = 4MB pre-load (User asked for 2MB+, so 4MB is safer)
+        prefetch_tasks = {}
         
-        async def fetch_distributed(c_idx):
-            ckey = (uid_key, c_idx)
+        async def do_fetch(c_idx):
+            ckey = (f.media_id, c_idx)
             if ckey in self._chunk_cache: return self._chunk_cache[ckey]
             
-            pri_id = c_idx % len(clients)
-            for rotate in range(min(4, len(clients))):
-                try:
-                    c = clients[(pri_id + rotate) % len(clients)]
-                    if not c.is_initialized: continue
-                    ms = c.media_sessions.get(f.dc_id) if hasattr(c, 'media_sessions') else c.session
-                    if not ms: ms = c.session
-                    
-                    data = await self.fetch_chunk(ms, loc, c_idx * chunk_size, chunk_size)
-                    if data:
-                        if len(self._chunk_cache) > 200: self._chunk_cache.clear()
-                        self._chunk_cache[ckey] = data
-                        return data
-                except: continue
-            return None
+            c = clients[c_idx % len(clients)]
+            data = await self.fetch_chunk(c, loc, c_idx * chunk_size, chunk_size)
+            if data:
+                if len(self._chunk_cache) > 100: self._chunk_cache.clear()
+                self._chunk_cache[ckey] = data
+            return data
 
         try:
             while bytes_remaining > 0:
                 chunk_index = current_pos // chunk_size
                 
+                # Immediate Fetch or Prefetch result
                 if chunk_index in prefetch_tasks:
                     chunk_data = await prefetch_tasks.pop(chunk_index)
                 else:
-                    for t in prefetch_tasks.values(): t.cancel()
-                    prefetch_tasks = {}
-                    chunk_data = await fetch_distributed(chunk_index)
+                    chunk_data = await do_fetch(chunk_index)
                 
-                if chunk_data is None: break
+                if not chunk_data: break
                 
-                # Start prefetching next 4 chunks (4MB) parallelly
-                for lookahead in range(1, prefetch_limit + 1):
-                    next_idx = chunk_index + lookahead
-                    if next_idx not in prefetch_tasks and (current_pos + (lookahead * chunk_size) < end_byte + chunk_size):
-                        prefetch_tasks[next_idx] = asyncio.create_task(fetch_distributed(next_idx))
+                # Prefetch next 2 chunks (User requested 2MB, using 2 * 512KB for stability)
+                for lookahead in range(1, 3):
+                    n_idx = chunk_index + lookahead
+                    if n_idx not in prefetch_tasks and (current_pos + (lookahead * chunk_size) < end_byte + chunk_size):
+                        prefetch_tasks[n_idx] = asyncio.create_task(do_fetch(n_idx))
                 
                 off = current_pos % chunk_size
-                if off >= len(chunk_data): break
-                take = min(len(chunk_data) - off, bytes_remaining)
-                yield chunk_data[off : off + take]
+                take = min(len(chunk_data)-off, bytes_remaining)
+                if take <= 0: break
                 
+                yield chunk_data[off : off+take]
                 current_pos += take
                 bytes_remaining -= take
                 
         except Exception as e:
-            print(f"Stream Error: {e}")
+            print(f"Streaming Aborted: {e}")
         finally:
             for t in prefetch_tasks.values(): t.cancel()
             work_loads[client_id] -= 1
