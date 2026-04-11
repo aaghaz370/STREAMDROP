@@ -1551,8 +1551,15 @@ async def stream_media(r:Request, unique_id: str, fname: str):
     client_id = 0
     
     if work_loads and multi_clients:
-        client_id = min(work_loads, key=work_loads.get)
-        c = multi_clients.get(client_id)
+        try:
+            client_id = min(work_loads, key=work_loads.get)
+            c = multi_clients.get(client_id)
+        except ValueError:
+            client_id = 0
+            c = bot
+    else:
+        client_id = 0
+        c = bot
     
     if not c:
         if bot:
@@ -1616,7 +1623,14 @@ async def stream_media(r:Request, unique_id: str, fname: str):
         if rh: hdrs["Content-Range"] = f"bytes {fb}-{ub}/{fsize}"
         return StreamingResponse(body, status_code=sc, headers=hdrs)
     except FileNotFoundError: raise HTTPException(404)
-    except Exception: print(traceback.format_exc()); raise HTTPException(500)
+    except Exception as e:
+        import traceback
+        err_msg = traceback.format_exc()
+        # Log to file for AI diagnosis
+        with open("error.log", "a", encoding="utf-8") as f:
+            f.write(f"\n\\n[ {time.strftime('%Y-%m-%d %H:%M:%S')} ] 500 ERROR: {str(e)}\\n{err_msg}\\n")
+        print(err_msg)
+        raise HTTPException(500, detail=f"Stream Error: {str(e)}")
 
 
 # =====================================================================================
