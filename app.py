@@ -2136,6 +2136,17 @@ async def workers_status(client: Client, message: Message):
     
     await message.reply_text(text, quote=True)
 
+class SafeStreamingResponse(StreamingResponse):
+    async def __call__(self, scope, receive, send):
+        async def safe_send(message):
+            try:
+                await send(message)
+            except RuntimeError as e:
+                if "shorter than Content-Length" in str(e):
+                    return
+                raise
+        await super().__call__(scope, receive, safe_send)
+
 @app.get("/dl/{unique_id}/{fname}")
 async def stream_media(r:Request, unique_id: str, fname: str):
     # Retrieve Message ID from DB
@@ -2219,7 +2230,7 @@ async def stream_media(r:Request, unique_id: str, fname: str):
             "Content-Length": str(rl)
         }
         if rh: hdrs["Content-Range"] = f"bytes {fb}-{ub}/{fsize}"
-        return StreamingResponse(body, status_code=sc, headers=hdrs)
+        return SafeStreamingResponse(body, status_code=sc, headers=hdrs)
     except FileNotFoundError: raise HTTPException(404)
     except Exception as e:
         import traceback
