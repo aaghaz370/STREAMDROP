@@ -55,6 +55,14 @@ async def lifespan(app: FastAPI):
     
     try:
         print("Starting main Pyrogram bot...")
+        
+        # FIX: Pyrogram was instantiated on the import-time loop. 
+        # We MUST bind it to the actual Uvicorn running loop!
+        loop = asyncio.get_running_loop()
+        bot.loop = loop
+        if hasattr(bot, "dispatcher") and bot.dispatcher:
+            bot.dispatcher.loop = loop
+            
         await bot.start()
         
         me = await bot.get_me()
@@ -84,6 +92,12 @@ async def lifespan(app: FastAPI):
 
         # Ensure we know about the channels
         # force_refresh_dialogs removed as it is not supported for bots
+        # Update loops for worker bots before initializing them
+        for worker in multi_clients.values():
+            worker.loop = loop
+            if hasattr(worker, "dispatcher") and worker.dispatcher:
+                worker.dispatcher.loop = loop
+                
         await initialize_clients()
 
         print(f"Verifying storage channel ({Config.STORAGE_CHANNEL})...")
