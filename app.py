@@ -2465,23 +2465,23 @@ async def api_set_plan(req: SetPlanRequest):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     
-    # Performance Optimizations
-    workers = int(os.environ.get("WEB_CONCURRENCY", 1))  # Render sets this automatically
-    
     import asyncio
-    loop = asyncio.get_event_loop()
     
-    config = uvicorn.Config(
-        app, 
-        host="0.0.0.0", 
-        port=port, 
-        log_level="info",
-        access_log=False,
-        timeout_keep_alive=300,
-        limit_concurrency=1000,
-        backlog=2048
-    )
-    server = uvicorn.Server(config)
+    async def main():
+        config = uvicorn.Config(
+            app, 
+            host="0.0.0.0", 
+            port=port, 
+            log_level="info",
+            access_log=False,
+            timeout_keep_alive=300,
+            limit_concurrency=1000,
+            backlog=2048
+        )
+        server = uvicorn.Server(config)
+        await server.serve()
     
-    # Run Uvicorn on the SAME event loop that Pyrogram captured during import!
-    loop.run_until_complete(server.serve())
+    # asyncio.run() creates a fresh event loop.
+    # Both Pyrogram and Uvicorn will share it since bot.start() is
+    # called inside the lifespan which runs inside this same loop.
+    asyncio.run(main())
