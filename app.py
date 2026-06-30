@@ -478,6 +478,36 @@ async def my_links_command(client: Client, message: Message):
         
     await message.reply_text(text, quote=True, disable_web_page_preview=True, reply_markup=buttons)
 
+@bot.on_message(filters.command("dellink") & filters.private)
+async def del_link_command(client: Client, message: Message):
+    user_id = message.from_user.id
+    if len(message.command) < 2:
+        await message.reply_text("❌ **Usage:** `/dellink [File_ID]`\n\n__You can find your File ID in the web dashboard or upload receipt.__", quote=True)
+        return
+        
+    unique_id = message.command[1]
+    link_data = await db.get_link_full(unique_id)
+    
+    if not link_data:
+        await message.reply_text("❌ **Error:** File not found or already deleted.", quote=True)
+        return
+        
+    # Verify ownership
+    owner_id = int(Config.OWNER_ID) if Config.OWNER_ID else 0
+    raw_uid = link_data.get("user_id")
+    try:
+        stored_uid = int(raw_uid) if (raw_uid is not None and str(raw_uid).strip() not in ('', 'None', 'null')) else 0
+    except (ValueError, TypeError):
+        stored_uid = 0
+        
+    if user_id != stored_uid and user_id != owner_id:
+        await message.reply_text("🚫 **Access Denied:** You can only delete your own files.", quote=True)
+        return
+        
+    await db.delete_link(unique_id)
+    await message.reply_text(f"✅ **File successfully deleted!**\n\n__The streaming link has been permanently destroyed.__", quote=True)
+
+
 @bot.on_callback_query()
 async def callback_handlers(client: Client, cb: "CallbackQuery"):
     if cb.data == "help":
@@ -488,6 +518,31 @@ async def callback_handlers(client: Client, cb: "CallbackQuery"):
         await my_links_command(client, cb.message)
     elif cb.data == "plans":
         await show_plans_command(client, cb.message)
+    elif cb.data.startswith("del_"):
+        unique_id = cb.data.split("_")[1]
+        user_id = cb.from_user.id
+        link_data = await db.get_link_full(unique_id)
+        if not link_data:
+            await cb.answer("❌ File not found or already deleted.", show_alert=True)
+            return
+            
+        owner_id = int(Config.OWNER_ID) if Config.OWNER_ID else 0
+        raw_uid = link_data.get("user_id")
+        try:
+            stored_uid = int(raw_uid) if (raw_uid is not None and str(raw_uid).strip() not in ('', 'None', 'null')) else 0
+        except (ValueError, TypeError):
+            stored_uid = 0
+            
+        if user_id != stored_uid and user_id != owner_id:
+            await cb.answer("🚫 Access Denied: You can only delete your own files.", show_alert=True)
+            return
+            
+        await db.delete_link(unique_id)
+        await cb.answer("✅ File successfully deleted!", show_alert=True)
+        try:
+            await cb.message.edit_text(f"🗑 **File Deleted.**\n\n__This file ({unique_id}) has been permanently removed.__")
+        except:
+            pass
     elif cb.data.startswith("showplan_"):
         plan_id = cb.data.split("_")[1]
         user_id = cb.from_user.id
@@ -935,7 +990,8 @@ async def handle_file_upload(message: Message, user_id: int):
             status_text = f"⬇️ **Download Link:**\n`{dl_link}`"
             buttons.append([InlineKeyboardButton("📥 Fast Download", url=dl_link)])
 
-        # Always add Univora Site
+        # Always add Univora Site & Delete Button
+        buttons.append([InlineKeyboardButton("❌ Delete Link", callback_data=f"del_{unique_id}")])
         buttons.append([InlineKeyboardButton("🌐 UNIVORA SITE", url="https://univora.site")])
         
         # Expire Notice
@@ -1434,6 +1490,35 @@ async def get_file_details_api(request: Request, unique_id: str):
 
 
     return response_data
+
+@app.delete("/api/file/{unique_id}", response_class=JSONResponse)
+async def delete_file_api(request: Request, unique_id: str, token: str, user_id: int):
+    import hmac as _hmac, hashlib
+    try:
+        secret = Config.BOT_TOKEN.encode()
+        expected = _hmac.new(secret, str(user_id).encode(), hashlib.sha256).hexdigest()
+        if not _hmac.compare_digest(token, expected):
+            raise HTTPException(status_code=403, detail="Invalid Token.")
+    except Exception:
+        raise HTTPException(status_code=403, detail="Token validation failed.")
+
+    link_data = await db.get_link_full(unique_id)
+    if not link_data:
+        raise HTTPException(status_code=404, detail="Link not found.")
+        
+    # Verify ownership
+    owner_id = int(Config.OWNER_ID) if Config.OWNER_ID else 0
+    raw_uid = link_data.get("user_id")
+    try:
+        stored_uid = int(raw_uid) if (raw_uid is not None and str(raw_uid).strip() not in ('', 'None', 'null')) else 0
+    except (ValueError, TypeError):
+        stored_uid = 0
+        
+    if user_id != stored_uid and user_id != owner_id:
+        raise HTTPException(status_code=403, detail="You don't have permission to delete this file.")
+        
+    await db.delete_link(unique_id)
+    return {"status": "success", "message": "File deleted successfully"}
 
 
 # In-memory cache for Telegram file metadata — avoids expensive API calls on every seek

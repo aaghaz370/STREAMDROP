@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import {
   Search, Folder, Clock, FileText, Film, Music, Image as ImageIcon,
   Download, PlayCircle, ChevronDown, Filter, ArrowUpDown,
-  AlertCircle, LayoutGrid, LayoutList
+  AlertCircle, LayoutGrid, LayoutList, Trash2
 } from 'lucide-react';
 
 const SORT_OPTIONS = [
@@ -94,6 +94,27 @@ export default function Dashboard() {
         setLoading(false);
       });
   }, [userId, tokenFromUrl]);
+
+  const handleDelete = async (uniqueId, fileName) => {
+    if (!window.confirm(`Are you sure you want to permanently delete "${fileName}"?`)) return;
+    
+    try {
+      const token = localStorage.getItem(`streamdrop_dash_token_${userId}`) || tokenFromUrl;
+      const res = await fetch(`/api/file/${uniqueId}?token=${token}&user_id=${userId}`, {
+        method: 'DELETE'
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to delete file');
+      
+      // Update state
+      setLinks(prev => prev.filter(l => {
+        const linkId = l.id || l.stream_link.split('/show/')[1]?.split('?')[0];
+        return linkId !== uniqueId;
+      }));
+    } catch (err) {
+      alert(err.message);
+    }
+  };
 
   const displayed = useMemo(() => {
     let arr = [...links];
@@ -265,10 +286,10 @@ export default function Dashboard() {
                 <div className="col-span-2 flex items-center justify-end gap-2 w-full md:w-auto mt-2 md:mt-0">
                   {!link.is_expired && (
                     <>
-                      <a href={link.stream_link} className="p-2 rounded-lg border border-[color:var(--border-color)] hover:border-indigo-500 hover:text-indigo-500 transition-colors" title="Stream">
+                      <a href={link.stream_link} className="p-2 rounded-lg border border-[color:var(--border-color)] hover:border-indigo-500 hover:text-indigo-500 hover:bg-indigo-500/10 transition-all" title="Stream">
                         <PlayCircle size={16} />
                       </a>
-                      <a href={`${link.dl_link}?download=true`} download={link.name || "download"} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg border border-[color:var(--border-color)] hover:border-emerald-500 hover:text-emerald-500 transition-colors" title="Download">
+                      <a href={`${link.dl_link}?download=true`} download={link.name || "download"} target="_blank" rel="noopener noreferrer" className="p-2 rounded-lg border border-[color:var(--border-color)] hover:border-emerald-500 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all" title="Download">
                         <Download size={16} />
                       </a>
                     </>
@@ -276,6 +297,9 @@ export default function Dashboard() {
                   {link.is_expired && (
                     <span className="px-3 py-1 rounded-lg text-xs font-bold text-red-500 bg-red-500/10 border border-red-500/20">Expired</span>
                   )}
+                  <button onClick={() => handleDelete(link.id || link.stream_link.split('/show/')[1]?.split('?')[0], link.name)} className="p-2 rounded-lg border border-[color:var(--border-color)] hover:border-red-500 hover:text-red-500 hover:bg-red-500/10 transition-all" title="Delete">
+                    <Trash2 size={16} />
+                  </button>
                 </div>
               </div>
             ))
