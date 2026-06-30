@@ -54,15 +54,47 @@ const FEATURES = [
 ];
 
 // ─── STAT CARD ────────────────────────────────────────────────
-function StatCard({ label, value, icon, color }) {
+function StatCard({ label, value, icon, colorName }) {
+  const gradientMap = {
+    indigo: 'from-indigo-500 to-purple-500 shadow-indigo-500/20',
+    emerald: 'from-emerald-400 to-teal-500 shadow-emerald-500/20',
+    red: 'from-rose-500 to-red-600 shadow-rose-500/20',
+    amber: 'from-amber-400 to-orange-500 shadow-amber-500/20'
+  };
+  const colorMap = {
+    indigo: 'text-indigo-500 border-indigo-500/20 bg-indigo-500/10',
+    emerald: 'text-emerald-500 border-emerald-500/20 bg-emerald-500/10',
+    red: 'text-rose-500 border-rose-500/20 bg-rose-500/10',
+    amber: 'text-amber-500 border-amber-500/20 bg-amber-500/10'
+  };
+  
+  const gradient = gradientMap[colorName] || gradientMap.indigo;
+  const iconTheme = colorMap[colorName] || colorMap.indigo;
+
   return (
-    <div className="bg-[color:var(--surface-color)] border border-[color:var(--border-color)] rounded-2xl p-5 flex flex-col justify-center items-center text-center gap-2 hover:border-indigo-500/30 hover:shadow-lg transition-all duration-300">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${color} bg-opacity-10 mb-1`}>
-        {icon}
+    <div className="relative group overflow-hidden bg-[color:var(--surface-color)] border border-[color:var(--border-color)] rounded-[20px] p-5 hover:border-transparent transition-all duration-300">
+      {/* Hover Gradient Border */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300 -z-10`}></div>
+      <div className="absolute inset-[1px] bg-[color:var(--surface-color)] rounded-[19px] -z-10"></div>
+      
+      {/* Subtle Glow Background */}
+      <div className={`absolute -right-8 -top-8 w-24 h-24 bg-gradient-to-br ${gradient} rounded-full opacity-10 blur-2xl group-hover:opacity-20 transition-opacity duration-500 -z-10`}></div>
+      
+      <div className="flex justify-between items-start mb-4">
+        <div className={`p-3 rounded-xl border ${iconTheme} shadow-inner group-hover:scale-110 transition-transform duration-300`}>
+          {icon}
+        </div>
+        <span className={`text-3xl font-black bg-clip-text text-transparent bg-gradient-to-br ${gradient}`}>
+          {value}
+        </span>
       </div>
+      
       <div>
-        <p className="text-2xl font-extrabold text-[color:var(--text-color)]">{value}</p>
-        <p className="text-[11px] text-[color:var(--text-muted)] font-bold uppercase tracking-wider">{label}</p>
+        <p className="text-[11px] text-[color:var(--text-muted)] font-extrabold uppercase tracking-widest">{label}</p>
+        {/* Animated bottom border line */}
+        <div className="h-1 w-8 group-hover:w-full transition-all duration-500 ease-out mt-3 rounded-full overflow-hidden">
+          <div className={`h-full w-full bg-gradient-to-r ${gradient}`}></div>
+        </div>
       </div>
     </div>
   );
@@ -192,10 +224,10 @@ export default function Profile() {
       {/* ── Stats ── */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-          <StatCard label="Total Uploads" value={stats.total || 0} icon={<HardDrive size={22} />} color="text-indigo-500 bg-indigo-500" />
-          <StatCard label="Active Links" value={stats.active || 0} icon={<Activity size={22} />} color="text-emerald-500 bg-emerald-500" />
-          <StatCard label="Expired Links" value={stats.expired || 0} icon={<Clock size={22} />} color="text-red-500 bg-red-500" />
-          <StatCard label="Premium Features" value="22+" icon={<Star size={22} />} color="text-amber-500 bg-amber-500" />
+          <StatCard label="Total Uploads" value={stats.total || 0} icon={<HardDrive size={22} />} colorName="indigo" />
+          <StatCard label="Active Links" value={stats.active || 0} icon={<Activity size={22} />} colorName="emerald" />
+          <StatCard label="Expired Links" value={stats.expired || 0} icon={<Clock size={22} />} colorName="red" />
+          <StatCard label="Premium Features" value="22+" icon={<Star size={22} />} colorName="amber" />
         </div>
       )}
 

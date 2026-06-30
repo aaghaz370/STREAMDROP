@@ -488,11 +488,15 @@ async def my_links_command(client: Client, message: Message):
     
     print(f"DEBUG: Generated Dashboard URL: '{dashboard_url}'") # Debug Print
     
-    buttons = InlineKeyboardMarkup([
-         [InlineKeyboardButton("📂 OPEN WEB DASHBOARD", web_app=WebAppInfo(url=dashboard_url))]
-    ])
-        
-    await message.reply_text(text, quote=True, disable_web_page_preview=True, reply_markup=buttons)
+    if dashboard_url.startswith("https://"):
+        dashboard_btn = InlineKeyboardButton("📂 OPEN WEB DASHBOARD", web_app=WebAppInfo(url=dashboard_url))
+        buttons = InlineKeyboardMarkup([
+             [dashboard_btn]
+        ])
+        await message.reply_text(text, quote=True, disable_web_page_preview=True, reply_markup=buttons)
+    else:
+        text += f"\n\n🔗 **Local Dashboard Link (Click to open):**\n{dashboard_url}"
+        await message.reply_text(text, quote=True, disable_web_page_preview=True)
 
 @bot.on_message(filters.command("dellink") & filters.private)
 async def del_link_command(client: Client, message: Message):
