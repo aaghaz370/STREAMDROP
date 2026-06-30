@@ -55,13 +55,27 @@ async def lifespan(app: FastAPI):
     
     try:
         loop = asyncio.get_running_loop()
+        
+        # CRITICAL FIX: Force the bot client to use the Uvicorn event loop.
+        # The Client object is created at module-load time (before Uvicorn starts),
+        # so it captures the wrong loop. We must replace it before start().
+        bot._loop = loop  # Pyrogram 2.x internal attribute
         bot.loop = loop
-        if hasattr(bot, "dispatcher") and bot.dispatcher:
-            bot.dispatcher.loop = loop
-            
+        
         print("Starting main Pyrogram bot...")
             
         await bot.start()
+        
+        # After bot.start(), the dispatcher runs on whatever loop it captured.
+        # Explicitly restart it on the Uvicorn (current running) loop.
+        if hasattr(bot, "dispatcher") and bot.dispatcher:
+            try:
+                await bot.dispatcher.stop()
+            except Exception:
+                pass
+            bot.dispatcher.loop = loop
+            await bot.dispatcher.start()
+            print("✅ Pyrogram dispatcher restarted on Uvicorn event loop.")
         
         me = await bot.get_me()
         Config.BOT_USERNAME = me.username
