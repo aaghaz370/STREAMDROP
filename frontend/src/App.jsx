@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext } from 'react';
 import { Home, PlaySquare, Moon, Sun, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import logoImg from './assets/logo.jpg';
@@ -9,6 +9,9 @@ import Show from './pages/Show';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import Landing from './pages/Landing';
+import Docs from './pages/Docs';
+
+export const ThemeContext = createContext({ isDark: true, setIsDark: () => {} });
 
 // Smart redirect: /show → last stream or 404
 function ShowRedirect() {
@@ -110,7 +113,9 @@ function Layout({ children }) {
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.25, ease: 'easeOut' }}
             className="w-full h-full">
-            {children}
+            <ThemeContext.Provider value={{ isDark, setIsDark }}>
+              {children}
+            </ThemeContext.Provider>
           </motion.div>
         </AnimatePresence>
       </main>
@@ -148,6 +153,7 @@ function App() {
           <Route path="/show/:uniqueId" element={<Show />} />
           <Route path="/show" element={<ShowRedirect />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/docs" element={<Docs />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Layout>
