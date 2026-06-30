@@ -32,6 +32,10 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import math
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 # Project ki dusri files se important cheezein import karo
 from config import Config
 from database import db
@@ -163,7 +167,11 @@ async def lifespan(app: FastAPI):
         await bot.stop()
     print("--- Lifespan: Shutdown poora hua. ---")
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, docs_url="/api/docs", redoc_url="/api/redoc", openapi_url="/api/openapi.json")
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="templates"), name="static")
 
@@ -1675,17 +1683,17 @@ class ByteStreamer:
                 await asyncio.sleep(0.5 * (attempt + 1))
         return None
 
-    async def yield_file(self, f: FileId, client_id: int, start_byte: int, end_byte: int, chunk_size: int):
+    _bot_file_reference_cache = {} # {(bot_id, media_id): FileId}
+
+    async def yield_file(self, f: FileId, client_id: int, start_byte: int, end_byte: int, chunk_size: int, mid: int = None):
         work_loads[client_id] = work_loads.get(client_id, 0) + 1
-        loc = await self.get_location(f)
         current_pos = start_byte
         bytes_remaining = end_byte - start_byte + 1
 
-        # Build the ordered client rotation list
-        # client_id determines which bot "owns" this stream request
-        master_client = multi_clients.get(client_id) or bot
-        all_cls = [master_client, bot] + [c for c in multi_clients.values() if c is not master_client]
-        clients = list({id(c): c for c in all_cls}.values())
+        if multi_clients:
+            clients = list(multi_clients.values())
+        else:
+            clients = [bot]
 
         prefetch_tasks = {}
 
@@ -1696,14 +1704,64 @@ class ByteStreamer:
 
             # Round-robin client selection for parallel prefetching
             client = clients[c_idx % len(clients)]
-            data = await self.fetch_chunk_from_client(client, f, loc, c_idx * chunk_size, chunk_size)
+            
+            # Use bot's own file reference
+            bot_id = id(client)
+            ref_key = (bot_id, f.media_id)
+            if ref_key not in self._bot_file_reference_cache:
+                if client is bot:
+                    self._bot_file_reference_cache[ref_key] = f
+                else:
+                    try:
+                        msg = await client.get_messages(Config.STORAGE_CHANNEL, mid)
+                        m = msg.document or msg.video or msg.audio or msg.photo
+                        if m:
+                            self._bot_file_reference_cache[ref_key] = FileId.decode(m.file_id)
+                        else:
+                            self._bot_file_reference_cache[ref_key] = f
+                    except Exception as e:
+                        print(f"Failed to fetch file reference for worker {bot_id}: {e}")
+                        self._bot_file_reference_cache[ref_key] = f
+                        
+            bot_fid = self._bot_file_reference_cache.get(ref_key, f)
+            bot_loc = await self.get_location(bot_fid)
+            
+            data = await self.fetch_chunk_from_client(client, bot_fid, bot_loc, c_idx * chunk_size, chunk_size)
 
-            # Fallback to main bot if worker fails
+            # Fallback to next worker if current fails
+            if data is None and len(clients) > 1:
+                next_client = clients[(c_idx + 1) % len(clients)]
+                next_bot_id = id(next_client)
+                next_ref_key = (next_bot_id, f.media_id)
+                if next_ref_key not in self._bot_file_reference_cache:
+                    if next_client is bot:
+                        self._bot_file_reference_cache[next_ref_key] = f
+                    else:
+                        try:
+                            msg = await next_client.get_messages(Config.STORAGE_CHANNEL, mid)
+                            m = msg.document or msg.video or msg.audio or msg.photo
+                            if m:
+                                self._bot_file_reference_cache[next_ref_key] = FileId.decode(m.file_id)
+                            else:
+                                self._bot_file_reference_cache[next_ref_key] = f
+                        except Exception:
+                            self._bot_file_reference_cache[next_ref_key] = f
+                next_bot_fid = self._bot_file_reference_cache.get(next_ref_key, f)
+                next_bot_loc = await self.get_location(next_bot_fid)
+                data = await self.fetch_chunk_from_client(next_client, next_bot_fid, next_bot_loc, c_idx * chunk_size, chunk_size)
+
+            # Ultimate fallback to main bot if workers fail (e.g. they aren't admins in storage channel)
             if data is None and client is not bot:
-                data = await self.fetch_chunk_from_client(bot, f, loc, c_idx * chunk_size, chunk_size)
+                print(f"⚠️ Workers failed to fetch chunk {c_idx}. Are they added to STORAGE_CHANNEL? Falling back to Main Bot.")
+                try:
+                    await bot.send_message(Config.LOG_CHANNEL, f"⚠️ **Worker Bot Failed!**\nA worker bot failed to fetch a chunk for file `{f.media_id}`.\nFalling back to Main Bot.\n**Action Required:** Please ensure ALL worker bots are added as **Admin** in the Storage Channel.")
+                except Exception:
+                    pass
+                bot_loc_fb = await self.get_location(f)
+                data = await self.fetch_chunk_from_client(bot, f, bot_loc_fb, c_idx * chunk_size, chunk_size)
 
             if data is not None:
-                if len(self._chunk_cache) > 200:
+                if len(self._chunk_cache) > 50:
                     self._chunk_cache.clear()
                 self._chunk_cache[ckey] = data
             return data
@@ -2189,7 +2247,19 @@ class SafeStreamingResponse(StreamingResponse):
         await super().__call__(scope, receive, safe_send)
 
 @app.get("/dl/{unique_id}/{fname}")
-async def stream_media(r:Request, unique_id: str, fname: str):
+@limiter.limit("20/minute")
+async def stream_media(request: Request, unique_id: str, fname: str):
+    # Embed Protection: Block unauthorized external embedding
+    referer = request.headers.get("referer")
+    if referer:
+        from urllib.parse import urlparse
+        ref_domain = urlparse(referer).netloc
+        base_domain = urlparse(Config.BASE_URL).netloc
+        ref_domain_stripped = ref_domain.split(':')[0]
+        base_domain_stripped = base_domain.split(':')[0]
+        if ref_domain_stripped != base_domain_stripped and ref_domain_stripped not in Config.ALLOWED_EMBED_DOMAINS:
+            raise HTTPException(status_code=403, detail=f"Streaming embedded on {ref_domain} is strictly prohibited by server.")
+    r = request
     # Retrieve Message ID from DB
     message_id, backups = await db.get_link(unique_id)
     if not message_id:
@@ -2257,7 +2327,7 @@ async def stream_media(r:Request, unique_id: str, fname: str):
         rl = ub - fb + 1
         cs = 512 * 1024  # 1MB chunks (Telegram max limit for MTProto GetFile)
         
-        body = tc.yield_file(fid, client_id, fb, ub, cs)
+        body = tc.yield_file(fid, client_id, fb, ub, cs, mid=mid)
         
         sc = 206 if rh else 200
         disp = "attachment" if r.query_params.get("download") else "inline"

@@ -43,3 +43,6 @@ class Config:
     
     # API key to control setplan externally
     PAYMENT_API_KEY = os.environ.get("PAYMENT_API_KEY", "Univora_SecureKey_12345")
+    
+    # Domains allowed to embed the video. Comma-separated in .env
+    ALLOWED_EMBED_DOMAINS = [d.strip() for d in os.environ.get("ALLOWED_EMBED_DOMAINS", "").split(",") if d.strip()]

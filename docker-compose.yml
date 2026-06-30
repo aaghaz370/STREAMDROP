@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  streamdrop:
+    build: .
+    container_name: streamdrop_bot
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./:/app
+      - /app/frontend/node_modules # prevent local node_modules from overwriting

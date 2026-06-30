@@ -229,7 +229,7 @@ export default function Landing() {
             <span className="font-bold text-lg">StreamDrop</span>
           </div>
           <div className={`text-sm font-medium ${isDark ? 'text-slate-500' : 'text-slate-500'}`}>
-            © 2026 Univora. All rights reserved.
+            © 2026 <a href="https://univora.site" target="_blank" rel="noopener noreferrer" className="hover:text-indigo-500 transition-colors">Univora</a>. All rights reserved.
           </div>
         </div>
       </footer>

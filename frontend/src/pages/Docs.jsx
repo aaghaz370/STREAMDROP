@@ -4,8 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   Sun, Moon, Home, Menu, X, Terminal, 
-  Zap, Shield, CreditCard, Code, HelpCircle, BookOpen 
+  Zap, Shield, CreditCard, Code, HelpCircle, BookOpen, MonitorPlay, Smartphone, Cloud, Settings, Sparkles, HardDrive, Activity, Globe, Info,
+  Film, Music, Image as ImageIcon, FileText, Package, Clock, Download, Share2, QrCode, Bookmark, Keyboard, PictureInPicture, Theater, Moon as MoonIcon, BarChart3, Star, CheckCircle2, ExternalLink, Heart, User, Crown, Calendar
 } from 'lucide-react';
+import logoImg from '../assets/logo.jpg';
 
 const SECTIONS = [
   { id: 'getting-started', title: 'Getting Started', icon: BookOpen },
@@ -13,6 +15,32 @@ const SECTIONS = [
   { id: 'api-integration', title: 'API / Integration', icon: Terminal },
   { id: 'plans', title: 'Plans & Pricing', icon: CreditCard },
   { id: 'faq', title: 'FAQ', icon: HelpCircle },
+  { id: 'about-univora', title: 'About Univora', icon: Info },
+];
+
+const FEATURES = [
+  { icon: <MonitorPlay size={20} />, title: 'Browser Streaming', desc: 'Play videos/audio directly in any browser — no app needed', color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
+  { icon: <Smartphone size={20} />, title: 'Mobile App Intents', desc: 'Open in VLC, MX Player, PlayIt or any Android player', color: 'text-violet-500', bg: 'bg-violet-500/10' },
+  { icon: <Download size={20} />, title: '1-Click Download', desc: 'Download any file instantly with one tap', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+  { icon: <QrCode size={20} />, title: 'QR Code Sharing', desc: 'Generate & save QR codes for any file link', color: 'text-amber-500', bg: 'bg-amber-500/10' },
+  { icon: <PictureInPicture size={20} />, title: 'Picture-in-Picture', desc: 'Float the player while using other apps', color: 'text-pink-500', bg: 'bg-pink-500/10' },
+  { icon: <Theater size={20} />, title: 'Theatre Mode', desc: 'Distraction-free full-width player mode', color: 'text-sky-500', bg: 'bg-sky-500/10' },
+  { icon: <Bookmark size={20} />, title: 'Mark Spots', desc: 'Bookmark timestamps to jump back to key moments', color: 'text-rose-500', bg: 'bg-rose-500/10' },
+  { icon: <Clock size={20} />, title: 'Sleep Timer', desc: 'Auto-pause after 15, 30, 60 or 90 minutes', color: 'text-teal-500', bg: 'bg-teal-500/10' },
+  { icon: <Keyboard size={20} />, title: 'Keyboard Shortcuts', desc: 'Space/Arrow keys, F for fullscreen, M for mute', color: 'text-cyan-500', bg: 'bg-cyan-500/10' },
+  { icon: <Shield size={20} />, title: 'Secure HMAC Auth', desc: 'Cryptographically signed dashboard access tokens', color: 'text-green-500', bg: 'bg-green-500/10' },
+  { icon: <Film size={20} />, title: 'Video Streaming', desc: 'Smooth HLS-like range-request streaming from Telegram', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+  { icon: <Music size={20} />, title: 'Audio Player', desc: 'Dedicated audio UI with waveform visualization', color: 'text-purple-500', bg: 'bg-purple-500/10' },
+  { icon: <ImageIcon size={20} />, title: 'Image Viewer', desc: 'Full-screen image preview for photos', color: 'text-amber-400', bg: 'bg-amber-400/10' },
+  { icon: <FileText size={20} />, title: 'Document Preview', desc: 'View PDFs and docs directly in the browser', color: 'text-emerald-400', bg: 'bg-emerald-400/10' },
+  { icon: <Package size={20} />, title: 'APK / File Downloads', desc: 'Any binary/archive shown with direct download UI', color: 'text-sky-400', bg: 'bg-sky-400/10' },
+  { icon: <BarChart3 size={20} />, title: 'Smart Dashboard', desc: 'Filter, sort, search all your files with advanced controls', color: 'text-indigo-400', bg: 'bg-indigo-400/10' },
+  { icon: <Share2 size={20} />, title: 'Link Sharing', desc: 'Native share sheet integration on mobile browsers', color: 'text-rose-400', bg: 'bg-rose-400/10' },
+  { icon: <MoonIcon size={20} />, title: 'Day / Night Mode', desc: 'System-aware theme with manual toggle', color: 'text-violet-400', bg: 'bg-violet-400/10' },
+  { icon: <HardDrive size={20} />, title: 'Cloud Library', desc: 'All your files in a filterable sidebar playlist', color: 'text-teal-400', bg: 'bg-teal-400/10' },
+  { icon: <Activity size={20} />, title: 'Stream Persistence', desc: 'Last-played link auto-restored on revisit', color: 'text-green-400', bg: 'bg-green-400/10' },
+  { icon: <Globe size={20} />, title: 'Embed Support', desc: 'Embed any stream as an <iframe> on any website', color: 'text-blue-400', bg: 'bg-blue-400/10' },
+  { icon: <Zap size={20} />, title: 'Instant Links', desc: 'Get your stream URL in seconds — just send a file', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
 ];
 
 export default function Docs() {
@@ -49,7 +77,7 @@ export default function Docs() {
                 Quick Start Guide
               </h3>
               <ol className="list-decimal list-inside space-y-3 text-indigo-800 dark:text-indigo-200 mb-6 font-medium">
-                <li>Open Telegram and start a chat with <strong className="text-indigo-950 dark:text-indigo-100">@StreamDropBot</strong>.</li>
+                <li>Open Telegram and start a chat with <a href="https://t.me/STREAM_DROP_BOT" target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 font-bold hover:underline">@STREAM_DROP_BOT</a>.</li>
                 <li>Send any file (video, audio, or document).</li>
                 <li>The bot will instantly reply with a unique streaming link.</li>
                 <li>Click the link to view the file in our web player, or use the URL to embed the file elsewhere.</li>
@@ -60,7 +88,7 @@ export default function Docs() {
                   <span className="text-gray-500"># Example Bot Interaction</span><br/>
                   <span className="text-blue-400 font-bold">User:</span> <span className="text-gray-300">[Uploads "movie.mp4"]</span><br/>
                   <span className="text-purple-400 font-bold">Bot:</span> <span className="text-gray-300">File received! Here is your stream link:</span><br/>
-                  <span className="text-green-400 border-b border-green-400/30 pb-0.5">https://streamdrop.app/show/abc123xyz</span>
+                  <span className="text-green-400 border-b border-green-400/30 pb-0.5">https://streamdrop.site/show/abc123xyz</span>
                 </code>
               </div>
             </div>
@@ -79,46 +107,16 @@ export default function Docs() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="p-6 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0f0f13] shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mb-5">
-                  <Zap className="text-blue-600 dark:text-blue-400" size={24} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {FEATURES.map((f, i) => (
+                <div key={i} className="p-6 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0f0f13] shadow-sm hover:shadow-md hover:border-indigo-500/30 transition-all duration-300 group">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 ${f.bg} group-hover:scale-110 transition-transform`}>
+                    {React.cloneElement(f.icon, { className: f.color })}
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{f.title}</h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">{f.desc}</p>
                 </div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Instant Playback</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                  No need to wait for the entire file to download. Our service supports byte-range requests, meaning videos buffer and play instantly just like YouTube.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0f0f13] shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-5">
-                  <Shield className="text-green-600 dark:text-green-400" size={24} />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Privacy First</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                  Files are streamed directly from Telegram's secure infrastructure. We don't keep copies of your personal data on our servers.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0f0f13] shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center mb-5">
-                  <Code className="text-purple-600 dark:text-purple-400" size={24} />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Embed Anywhere</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                  Take your streaming link and embed it in an iframe on your own website, blog, or app with zero configuration required.
-                </p>
-              </div>
-
-              <div className="p-6 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0f0f13] shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-12 h-12 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mb-5">
-                  <BookOpen className="text-orange-600 dark:text-orange-400" size={24} />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">High Availability</h3>
-                <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                  Built on edge-optimized networks to guarantee reliable uptime. Your streams stay alive as long as the file exists on Telegram.
-                </p>
-              </div>
+              ))}
             </div>
           </div>
         );
@@ -136,6 +134,13 @@ export default function Docs() {
             </div>
 
             <div className="space-y-4">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-5 rounded-2xl mb-8">
+                <h3 className="text-red-800 dark:text-red-400 font-bold mb-2 flex items-center gap-2"><Shield size={20} /> STRICT WARNING</h3>
+                <p className="text-red-700 dark:text-red-300 text-sm leading-relaxed">
+                  These API features are <strong>NOT</strong> for everyone and public usage is strictly monitored. StreamDrop is <strong>NOT a free unlimited CDN</strong>. If we detect abuse or unauthorized heavy integration, you will be permanently banned from all Univora platforms. Please contact the Admin before building heavy integrations.
+                </p>
+              </div>
+
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-800 pb-2">
                 Iframe Embedding
               </h2>
@@ -156,7 +161,7 @@ export default function Docs() {
                   <pre className="text-sm font-mono text-gray-300 leading-relaxed">
                     <code>
 <span className="text-blue-400">&lt;iframe</span><br/>
-{'  '}<span className="text-green-300">src</span>=<span className="text-yellow-300">"https://streamdrop.app/show/abc123xyz?embed=true"</span><br/>
+{'  '}<span className="text-green-300">src</span>=<span className="text-yellow-300">"https://streamdrop.site/show/abc123xyz?embed=true"</span><br/>
 {'  '}<span className="text-green-300">width</span>=<span className="text-yellow-300">"100%"</span><br/>
 {'  '}<span className="text-green-300">height</span>=<span className="text-yellow-300">"500px"</span><br/>
 {'  '}<span className="text-green-300">frameborder</span>=<span className="text-yellow-300">"0"</span><br/>
@@ -191,66 +196,64 @@ export default function Docs() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-              {/* Free Tier */}
-              <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0f0f13] p-8 shadow-sm relative flex flex-col">
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Hobby</h3>
-                <p className="text-gray-500 dark:text-gray-400 mb-6 h-10">Perfect for personal use and small files.</p>
-                <div className="mb-8">
-                  <span className="text-5xl font-extrabold text-gray-900 dark:text-white">Free</span>
-                </div>
-                <ul className="space-y-4 mb-8 flex-1">
-                  <li className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-                    <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400"><Zap size={14} /></div>
-                    Up to 2GB per file
-                  </li>
-                  <li className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-                    <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400"><Zap size={14} /></div>
-                    Standard streaming speed
-                  </li>
-                  <li className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-                    <div className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400"><Zap size={14} /></div>
-                    Watermarked player
-                  </li>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+              
+              <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0f0f13] p-6 shadow-sm relative flex flex-col">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">7-Day Free Trial</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4 h-10 text-sm">Experience premium features completely free.</p>
+                <ul className="space-y-3 mb-6 flex-1 text-sm">
+                  <li className="flex items-center gap-2 text-gray-600 dark:text-gray-300"><Zap size={14} className="text-indigo-500"/> Unlimited Uploads</li>
+                  <li className="flex items-center gap-2 text-gray-600 dark:text-gray-300"><Zap size={14} className="text-indigo-500"/> Web Dashboard</li>
+                  <li className="flex items-center gap-2 text-gray-600 dark:text-gray-300"><Zap size={14} className="text-indigo-500"/> Fast Streaming</li>
                 </ul>
-                <button className="w-full py-3.5 px-4 rounded-xl font-semibold bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-900 dark:text-white transition-colors">
-                  Current Plan
-                </button>
               </div>
 
-              {/* Premium Tier */}
-              <div className="rounded-3xl border-2 border-indigo-500 bg-white dark:bg-[#0f0f13] p-8 shadow-xl shadow-indigo-500/10 relative flex flex-col">
-                <div className="absolute top-0 right-0 bg-indigo-500 text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl uppercase tracking-wider">
-                  Popular
+              <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0f0f13] p-6 shadow-sm relative flex flex-col">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">1 Week</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4 h-10 text-sm">Short-term access for quick needs.</p>
+                <div className="mb-4 flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold text-gray-900 dark:text-white">₹30</span>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Pro</h3>
-                <p className="text-gray-500 dark:text-gray-400 mb-6 h-10">For power users, creators, and developers.</p>
-                <div className="mb-8 flex items-baseline gap-1">
-                  <span className="text-5xl font-extrabold text-gray-900 dark:text-white">$5</span>
-                  <span className="text-xl text-gray-500 dark:text-gray-400 font-medium">/mo</span>
-                </div>
-                <ul className="space-y-4 mb-8 flex-1">
-                  <li className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-                    <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-white"><Zap size={14} /></div>
-                    Up to 4GB per file
-                  </li>
-                  <li className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-                    <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-white"><Zap size={14} /></div>
-                    High-speed priority streaming
-                  </li>
-                  <li className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-                    <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-white"><Zap size={14} /></div>
-                    Whitelabel player (No ads)
-                  </li>
-                  <li className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
-                    <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center text-white"><Zap size={14} /></div>
-                    Direct raw file extraction
-                  </li>
+                <ul className="space-y-3 mb-6 flex-1 text-sm">
+                  <li className="flex items-center gap-2 text-gray-600 dark:text-gray-300"><Zap size={14} className="text-indigo-500"/> 7 Days Validity</li>
+                  <li className="flex items-center gap-2 text-gray-600 dark:text-gray-300"><Zap size={14} className="text-indigo-500"/> Priority Support</li>
                 </ul>
-                <button className="w-full py-3.5 px-4 rounded-xl font-semibold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-md shadow-indigo-500/20">
-                  Upgrade to Pro
-                </button>
               </div>
+
+              <div className="rounded-3xl border-2 border-indigo-500 bg-white dark:bg-[#0f0f13] p-6 shadow-xl shadow-indigo-500/10 relative flex flex-col">
+                <div className="absolute top-0 right-0 bg-indigo-500 text-white text-[10px] font-bold px-3 py-1 rounded-bl-xl rounded-tr-[22px] uppercase tracking-wider">Popular</div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">1 Month</h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-4 h-10 text-sm">For active users and creators.</p>
+                <div className="mb-4 flex items-baseline gap-1">
+                  <span className="text-3xl font-extrabold text-gray-900 dark:text-white">₹99</span>
+                </div>
+                <ul className="space-y-3 mb-6 flex-1 text-sm">
+                  <li className="flex items-center gap-2 text-gray-600 dark:text-gray-300"><Zap size={14} className="text-indigo-500"/> 30 Days Validity</li>
+                  <li className="flex items-center gap-2 text-gray-600 dark:text-gray-300"><Zap size={14} className="text-indigo-500"/> Ad-Free UI</li>
+                </ul>
+              </div>
+
+              <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0f0f13] p-6 shadow-sm relative flex flex-col">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">2 Months</h3>
+                <div className="mb-4 flex items-baseline gap-1 mt-6">
+                  <span className="text-3xl font-extrabold text-gray-900 dark:text-white">₹160</span>
+                </div>
+                <ul className="space-y-3 mb-6 flex-1 text-sm">
+                  <li className="flex items-center gap-2 text-gray-600 dark:text-gray-300"><Zap size={14} className="text-indigo-500"/> 60 Days Validity</li>
+                </ul>
+              </div>
+
+              <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-gradient-to-br from-indigo-900 to-purple-900 p-6 shadow-sm relative flex flex-col text-white">
+                <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">Lifetime <Sparkles size={16} className="text-yellow-400"/></h3>
+                <div className="mb-4 flex items-baseline gap-1 mt-6">
+                  <span className="text-3xl font-extrabold text-white">₹999</span>
+                </div>
+                <ul className="space-y-3 mb-6 flex-1 text-sm text-indigo-100">
+                  <li className="flex items-center gap-2"><Zap size={14} className="text-yellow-400"/> Never Expires</li>
+                  <li className="flex items-center gap-2"><Zap size={14} className="text-yellow-400"/> All Future Updates</li>
+                </ul>
+              </div>
+
             </div>
           </div>
         );
@@ -294,6 +297,39 @@ export default function Docs() {
             </div>
           </div>
         );
+
+      case 'about-univora':
+        return (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            <div>
+              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white mb-4 flex items-center gap-3">
+                <Info className="text-indigo-500" size={32} /> About Univora
+              </h1>
+              <p className="text-lg text-gray-600 dark:text-gray-400">
+                Discover the ecosystem behind StreamDrop.
+              </p>
+            </div>
+
+            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-900/20 p-8 rounded-3xl border border-indigo-100 dark:border-indigo-900/30 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+              
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">What is Univora?</h2>
+              <p className="text-gray-600 dark:text-gray-400 leading-relaxed mb-6 relative z-10">
+                Univora is an expansive digital ecosystem consisting of innovative apps, versatile bots, dynamic websites, and powerful platforms designed to enhance your online world. StreamDrop is just one of the many robust tools created under the Univora umbrella.
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4 mt-8 relative z-10">
+                <a href="https://univora.site" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold transition-colors shadow-md shadow-indigo-500/20">
+                  <Globe size={18} /> Visit Univora.site
+                </a>
+                <a href="https://t.me/Univora88" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2 bg-[#2AABEE] hover:bg-[#2298D6] text-white px-6 py-3 rounded-xl font-bold transition-colors shadow-md shadow-[#2AABEE]/20">
+                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.35-.01-1.03-.2-1.53-.37-.61-.2-1.1-.3-1.05-.63.02-.17.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .24z"/></svg>
+                  Join Telegram Channel
+                </a>
+              </div>
+            </div>
+          </div>
+        );
       default:
         return null;
     }
@@ -313,9 +349,7 @@ export default function Docs() {
           </button>
           
           <Link to="/" className="flex items-center gap-2.5 font-bold text-lg tracking-tight hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-sm">
-              <Zap size={18} fill="currentColor" />
-            </div>
+            <img src={logoImg} alt="StreamDrop" className="w-8 h-8 rounded-lg shadow-sm object-cover" />
             StreamDrop <span className="text-gray-400 dark:text-gray-500 font-normal">Docs</span>
           </Link>
         </div>
