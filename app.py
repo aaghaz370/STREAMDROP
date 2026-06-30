@@ -58,10 +58,11 @@ async def lifespan(app: FastAPI):
         
         # FIX: Pyrogram was instantiated on the import-time loop. 
         # We MUST bind it to the actual Uvicorn running loop!
-        loop = asyncio.get_running_loop()
-        bot.loop = loop
-        if hasattr(bot, "dispatcher") and bot.dispatcher:
-            bot.dispatcher.loop = loop
+        # Re-instantiating the Client inside the running loop is the safest way to ensure Session, Connection, and Updates are bound correctly.
+        global bot
+        old_groups = bot.dispatcher.groups
+        bot = Client("SimpleStreamBot", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN, in_memory=False)
+        bot.dispatcher.groups = old_groups
             
         await bot.start()
         
