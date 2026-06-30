@@ -2335,6 +2335,16 @@ if __name__ == "__main__":
     # Performance Optimizations
     workers = int(os.environ.get("WEB_CONCURRENCY", 1))  # Render sets this automatically
     
+    # FIX: Flush Pyrogram dispatcher background tasks on the import-time loop
+    # before Uvicorn takes over and creates a new loop.
+    try:
+        import asyncio
+        loop = asyncio.get_event_loop()
+        if loop and not loop.is_running():
+            loop.run_until_complete(asyncio.sleep(0.1))
+    except Exception as e:
+        print(f"Warning: Could not flush old loop tasks: {e}")
+    
     uvicorn.run(
         "app:app", 
         host="0.0.0.0", 
