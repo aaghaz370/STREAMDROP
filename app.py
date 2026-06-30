@@ -436,6 +436,7 @@ I will instantly generate a **Stream Link** and a **Download Link**.
 
 **Step 4: Manage Files**
 Use `/my_links` to see your recent uploads.
+Use `/dellink` to delete an active link.
 
 ──────────────────
 
@@ -710,7 +711,8 @@ async def all_commands_command(client: Client, message: Message):
 ├ `/help` - Brief guide on how to use
 ├ `/showplan` - View Premium Plans & Pricing
 ├ `/mydata` - Check your Usage & Plan Expiry
-└ `/my_links` - View your recently uploaded files
+├ `/my_links` - View your recently uploaded files
+└ `/dellink` - Delete an uploaded file link
 
 📤 **Usage**
 Simply forward any file to me to get a Stream Link.
