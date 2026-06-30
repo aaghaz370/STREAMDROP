@@ -110,6 +110,8 @@ class Database:
 
     async def get_user_data(self, user_id):
         user = await self.db.users.find_one({"_id": user_id})
+        today_iso = datetime.date.today().isoformat()
+        
         if not user:
             # Create default free user
             user = {
@@ -117,11 +119,18 @@ class Database:
                 "plan": "free",
                 "plan_expiry": None,
                 "daily_count": 0,
-                "last_usage_date": datetime.date.today().isoformat(),
-                "trial_used": False
+                "last_usage_date": today_iso,
+                "trial_used": False,
+                "join_date": today_iso
             }
             await self.db.users.insert_one(user)
             self._run_backup(self.db2.users.insert_one(user))
+        else:
+            # Backfill join_date for existing users
+            if "join_date" not in user:
+                user["join_date"] = user.get("last_usage_date", today_iso)
+                await self.db.users.update_one({"_id": user_id}, {"$set": {"join_date": user["join_date"]}})
+                
         return user
 
     async def activate_trial(self, user_id, expiry_date: datetime.datetime):

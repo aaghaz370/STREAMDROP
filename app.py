@@ -19,7 +19,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from pyrogram import Client, filters, enums
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ChatMemberUpdated, ForceReply
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ChatMemberUpdated, ForceReply, WebAppInfo
 from pyrogram.errors import FloodWait, UserNotParticipant
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -489,7 +489,7 @@ async def my_links_command(client: Client, message: Message):
     print(f"DEBUG: Generated Dashboard URL: '{dashboard_url}'") # Debug Print
     
     buttons = InlineKeyboardMarkup([
-         [InlineKeyboardButton("📂 OPEN WEB DASHBOARD", url=dashboard_url)]
+         [InlineKeyboardButton("📂 OPEN WEB DASHBOARD", web_app=WebAppInfo(url=dashboard_url))]
     ])
         
     await message.reply_text(text, quote=True, disable_web_page_preview=True, reply_markup=buttons)
@@ -1363,11 +1363,42 @@ async def get_profile_api(request: Request, user_id: int, token: str):
     from subscription import get_plan_status
     plan_info = await get_plan_status(user_id)
     
+    first_name = "User"
+    username = ""
+    try:
+        tg_user = await bot.get_users(user_id)
+        first_name = tg_user.first_name or "User"
+        username = tg_user.username or ""
+    except Exception:
+        pass
+        
     return {
         "user_id": user_id,
+        "first_name": first_name,
+        "username": username,
+        "join_date": user_data.get("join_date", ""),
         "plan_info": plan_info,
         "trial_used": user_data.get("trial_used", False)
     }
+
+@app.get("/api/profile/photo/{user_id}")
+async def get_profile_photo_api(request: Request, user_id: int):
+    try:
+        tg_user = await bot.get_users(user_id)
+        if tg_user.photo:
+            # Download directly into memory, don't save to disk (saves 512MB limit)
+            photo_bytes_io = await bot.download_media(tg_user.photo.big_file_id, in_memory=True)
+            if photo_bytes_io:
+                # Seek to start
+                photo_bytes_io.seek(0)
+                from fastapi.responses import StreamingResponse
+                return StreamingResponse(photo_bytes_io, media_type="image/jpeg")
+    except Exception as e:
+        print(f"Error fetching photo for {user_id}: {e}")
+        pass
+    
+    # Return 404 if no photo or error
+    raise HTTPException(status_code=404, detail="No photo")
 
 
 @app.post("/api/trial/activate/{user_id}", response_class=JSONResponse)
