@@ -46,6 +46,8 @@ export default function Dashboard() {
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [fileToDelete, setFileToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter state
   const [q, setQ] = useState('');
@@ -95,12 +97,17 @@ export default function Dashboard() {
       });
   }, [userId, tokenFromUrl]);
 
-  const handleDelete = async (uniqueId, fileName) => {
-    if (!window.confirm(`Are you sure you want to permanently delete "${fileName}"?`)) return;
+  const confirmDelete = (uniqueId, fileName) => {
+    setFileToDelete({ id: uniqueId, name: fileName });
+  };
+
+  const executeDelete = async () => {
+    if (!fileToDelete) return;
+    setIsDeleting(true);
     
     try {
       const token = localStorage.getItem(`streamdrop_dash_token_${userId}`) || tokenFromUrl;
-      const res = await fetch(`/api/file/${uniqueId}?token=${token}&user_id=${userId}`, {
+      const res = await fetch(`/api/file/${fileToDelete.id}?token=${token}&user_id=${userId}`, {
         method: 'DELETE'
       });
       const data = await res.json();
@@ -109,10 +116,13 @@ export default function Dashboard() {
       // Update state
       setLinks(prev => prev.filter(l => {
         const linkId = l.id || l.stream_link.split('/show/')[1]?.split('?')[0];
-        return linkId !== uniqueId;
+        return linkId !== fileToDelete.id;
       }));
+      setFileToDelete(null);
     } catch (err) {
       alert(err.message);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -160,7 +170,42 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 md:p-8 bg-[color:var(--bg-color)] text-[color:var(--text-color)] min-h-full">
+    <div className="w-full max-w-6xl mx-auto p-4 md:p-8 bg-[color:var(--bg-color)] text-[color:var(--text-color)] min-h-full relative">
+
+      {/* Confirmation Modal */}
+      {fileToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity">
+          <div className="bg-[color:var(--surface-color)] border border-[color:var(--border-color)] rounded-2xl p-6 max-w-md w-full shadow-2xl transform transition-all scale-100">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 mb-4">
+              <AlertCircle className="text-red-500" size={24} />
+            </div>
+            <h3 className="text-xl font-bold text-[color:var(--text-color)] mb-2">Delete File?</h3>
+            <p className="text-[color:var(--text-muted)] text-sm mb-6">
+              Are you sure you want to permanently delete <span className="font-semibold text-[color:var(--text-color)]">"{fileToDelete.name}"</span>? This action cannot be undone and the link will stop working immediately.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button 
+                onClick={() => setFileToDelete(null)}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl text-sm font-bold bg-[color:var(--bg-color)] text-[color:var(--text-color)] border border-[color:var(--border-color)] hover:bg-[color:var(--border-color)] transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={executeDelete}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-xl text-sm font-bold bg-red-500 text-white shadow-lg shadow-red-500/20 hover:bg-red-600 transition-colors flex items-center gap-2 disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Deleting...</>
+                ) : (
+                  <><Trash2 size={16} /> Delete</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="mb-8">
@@ -297,7 +342,7 @@ export default function Dashboard() {
                   {link.is_expired && (
                     <span className="px-3 py-1 rounded-lg text-xs font-bold text-red-500 bg-red-500/10 border border-red-500/20">Expired</span>
                   )}
-                  <button onClick={() => handleDelete(link.id || link.stream_link.split('/show/')[1]?.split('?')[0], link.name)} className="p-2 rounded-lg border border-[color:var(--border-color)] hover:border-red-500 hover:text-red-500 hover:bg-red-500/10 transition-all" title="Delete">
+                  <button onClick={() => confirmDelete(link.id || link.stream_link.split('/show/')[1]?.split('?')[0], link.name)} className="p-2 rounded-lg border border-[color:var(--border-color)] hover:border-red-500 hover:text-red-500 hover:bg-red-500/10 transition-all" title="Delete">
                     <Trash2 size={16} />
                   </button>
                 </div>

@@ -19,7 +19,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from pyrogram import Client, filters, enums
-from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ChatMemberUpdated
+from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, ChatMemberUpdated, ForceReply
 from pyrogram.errors import FloodWait, UserNotParticipant
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -496,12 +496,31 @@ async def my_links_command(client: Client, message: Message):
 
 @bot.on_message(filters.command("dellink") & filters.private)
 async def del_link_command(client: Client, message: Message):
-    user_id = message.from_user.id
     if len(message.command) < 2:
-        await message.reply_text("❌ **Usage:** `/dellink [File_ID]`\n\n__You can find your File ID in the web dashboard or upload receipt.__", quote=True)
+        await message.reply_text(
+            "🗑 **Delete a File**\n\n__Please reply to this message with the File ID or the full Stream Link you want to delete.__",
+            quote=True,
+            reply_markup=ForceReply(selective=True)
+        )
         return
         
     unique_id = message.command[1]
+    await process_delete_link(client, message, unique_id)
+
+@bot.on_message(filters.reply & filters.private)
+async def catch_delete_reply(client: Client, message: Message):
+    if message.reply_to_message and message.reply_to_message.from_user.is_self:
+        if "Delete a File" in message.reply_to_message.text:
+            unique_id = message.text.strip()
+            await process_delete_link(client, message, unique_id)
+
+async def process_delete_link(client: Client, message: Message, unique_id: str):
+    user_id = message.from_user.id
+    
+    # Extract ID if a full URL was provided
+    if "http" in unique_id or "/" in unique_id:
+        unique_id = unique_id.strip('/').split('/')[-1].split('?')[0]
+        
     link_data = await db.get_link_full(unique_id)
     
     if not link_data:
