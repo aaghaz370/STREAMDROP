@@ -17,7 +17,12 @@ class Config:
         except ValueError: STORAGE_CHANNEL = _storage_channel_str
     else: STORAGE_CHANNEL = 0
     
-    BASE_URL = os.environ.get("BASE_URL", "").rstrip('/')
+    _base_url_env = os.environ.get("BASE_URL", "").rstrip('/')
+    if os.name == 'nt' or os.environ.get("LOCAL_DEV") == "true":
+        _port = int(os.environ.get("PORT", 8000))
+        BASE_URL = f"http://127.0.0.1:{_port}"
+    else:
+        BASE_URL = _base_url_env
     DATABASE_URL = os.environ.get("DATABASE_URL", "")
     REDIRECT_BLOGGER_URL = os.environ.get("REDIRECT_BLOGGER_URL", "")
     BLOGGER_PAGE_URL = os.environ.get("BLOGGER_PAGE_URL", "")
