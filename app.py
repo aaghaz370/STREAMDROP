@@ -54,9 +54,12 @@ async def lifespan(app: FastAPI):
         await db.load_session_file("SimpleStreamBot", "SimpleStreamBot.session")
     
     try:
+        loop = asyncio.get_running_loop()
+        bot.loop = loop
+        if hasattr(bot, "dispatcher") and bot.dispatcher:
+            bot.dispatcher.loop = loop
+            
         print("Starting main Pyrogram bot...")
-        
-
             
         await bot.start()
         
