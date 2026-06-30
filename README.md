@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://i.imgur.com/your-logo.png" alt="StreamDrop Logo" width="150" />
+  <img src="templates\logo.jpg" alt="StreamDrop Logo" width="150" />
   <h1>🚀 StreamDrop Bot</h1>
   <p><b>Advanced High-Speed Telegram File to Link Streaming Bot</b></p>
   
