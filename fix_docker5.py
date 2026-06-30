@@ -17,16 +17,16 @@ try:
     ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     ssh.connect(VPS_IP, username='root', password=VPS_PASS, timeout=10)
     
-    # 2. Cleanup all containers to avoid name conflicts
-    print("Force removing all containers...")
+    print("Installing docker plugin...")
+    run_cmd(ssh, "curl -fsSL https://get.docker.com -o get-docker.sh && sh get-docker.sh")
+    
+    run_cmd(ssh, "systemctl daemon-reload && systemctl restart docker")
+    
+    print("Removing old containers...")
     run_cmd(ssh, "docker rm -f $(docker ps -a -q)")
     
-    # 3. Use 'docker compose' (with space) to run
     print("Starting bot...")
-    stdin, stdout, stderr = ssh.exec_command("cd STREAMDROP && docker compose up -d")
-    exit_status = stdout.channel.recv_exit_status()
-    print("STDOUT:", stdout.read().decode('utf-8', errors='ignore'))
-    print("STDERR:", stderr.read().decode('utf-8', errors='ignore'))
+    run_cmd(ssh, "cd STREAMDROP && docker compose build && docker compose up -d")
     
     ssh.close()
 except Exception as e:

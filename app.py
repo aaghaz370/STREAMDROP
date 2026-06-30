@@ -4,12 +4,7 @@ import os
 import asyncio
 import threading
 
-# --- FIX: EVENT LOOP FOR NEWER PYTHON VERSIONS ---
-try:
-    asyncio.get_event_loop()
-except RuntimeError:
-    asyncio.set_event_loop(asyncio.new_event_loop())
-# ------------------------------------------------
+# Event loop initialization deferred to Uvicorn lifespan
 
 import secrets
 import traceback
@@ -54,19 +49,14 @@ async def lifespan(app: FastAPI):
     
     await db.connect()
     
-    # Restoring Session across Render OOM reboots
-    await db.load_session_file("SimpleStreamBot", "SimpleStreamBot.session")
+    # Restoring Session across Render OOM reboots (only if missing locally)
+    if not os.path.exists("SimpleStreamBot.session"):
+        await db.load_session_file("SimpleStreamBot", "SimpleStreamBot.session")
     
     try:
         print("Starting main Pyrogram bot...")
         
-        # FIX: Pyrogram was instantiated on the import-time loop. 
-        # We MUST bind it to the actual Uvicorn running loop!
-        # Re-instantiating the Client inside the running loop is the safest way to ensure Session, Connection, and Updates are bound correctly.
-        global bot
-        old_groups = bot.dispatcher.groups
-        bot = Client("SimpleStreamBot", api_id=Config.API_ID, api_hash=Config.API_HASH, bot_token=Config.BOT_TOKEN, in_memory=False)
-        bot.dispatcher.groups = old_groups
+
             
         await bot.start()
         
