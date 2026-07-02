@@ -323,9 +323,15 @@ def mask_filename(name: str):
 # --- PYROGRAM BOT HANDLERS ---
 # =====================================================================================
 
+# DEBUG: Catch-all handler to confirm dispatcher is processing updates
+@bot.on_message(filters.all, group=-999)
+async def debug_all_messages(client: Client, message: Message):
+    print(f"[DEBUG] ★ Message received! from={getattr(message.from_user, 'id', '?')} text={message.text!r} chat={message.chat.id}")
+
 @bot.on_message(filters.command("start") & filters.private)
 async def start_command(client: Client, message: Message):
     user_id = message.from_user.id
+    print(f"[DEBUG] /start from user_id={user_id}")
     
     # --- CHECK ACCESS ---
     is_allowed, error_data = await check_access(user_id)
@@ -2429,29 +2435,42 @@ async def api_set_plan(req: SetPlanRequest):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
-    
     import asyncio
+    import threading
+    
+    # ============================================================
+    # DEFINITIVE FIX:
+    # Pyrogram's Session.__init__ calls asyncio.get_event_loop()
+    # which returns wrong loop when bot = Client(...) is at module level.
+    # Fix: monkey-patch Session to use asyncio.get_running_loop()
+    # which always returns the CORRECT running loop inside a coroutine.
+    # ============================================================
+    _original_session_init = Session.__init__
+    def _patched_session_init(self, *args, **kwargs):
+        _original_session_init(self, *args, **kwargs)
+        try:
+            self.loop = asyncio.get_event_loop()
+        except RuntimeError:
+            pass  # will be set correctly when start() is called
+    Session.__init__ = _patched_session_init
     
     async def main():
-        # ============================================================
-        # CRITICAL: Start bot HERE (before Uvicorn) so all Pyrogram
-        # session tasks are created on THIS asyncio.run() event loop.
-        # Session.__init__ calls asyncio.get_event_loop() which must
-        # return the RUNNING loop at session creation time.
-        # ============================================================
+        # DB connect
         print("[MAIN] Connecting to Database...")
         await db.connect()
-        
         if not os.path.exists("SimpleStreamBot.session"):
             await db.load_session_file("SimpleStreamBot", "SimpleStreamBot.session")
         
-        print("[MAIN] Starting Pyrogram bot on current event loop...")
+        # ---- Start bot FIRST, on THIS loop ----
+        # Since we're inside asyncio.run(), asyncio.get_event_loop()
+        # now correctly returns THIS running loop.
+        print("[MAIN] Starting Pyrogram bot...")
         await bot.start()
-        print(f"[MAIN] ✅ Bot started. Starting workers...")
+        print("[MAIN] Starting worker clients...")
         await initialize_clients()
-        print("[MAIN] ✅ Workers initialized. Starting Uvicorn...")
+        print("[MAIN] ✅ All clients ready. Starting Uvicorn...")
         
-        # Now start Uvicorn. The lifespan will run on this same loop.
+        # ---- Run Uvicorn on the SAME loop ----
         config = uvicorn.Config(
             app,
             host="0.0.0.0",
@@ -2465,7 +2484,6 @@ if __name__ == "__main__":
         server = uvicorn.Server(config)
         await server.serve()
         
-        # Cleanup on shutdown
         if bot.is_initialized:
             await bot.stop()
     
