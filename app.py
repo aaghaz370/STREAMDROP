@@ -44,44 +44,25 @@ import logger as L  # Log channel integration
 async def lifespan(app: FastAPI):
     """
     Yeh function bot ko web server ke saath start aur stop karta hai.
+    Bot ALREADY started in __main__ before Uvicorn, so we just do
+    post-startup configuration here.
     """
     print("--- Lifespan: Server chalu ho raha hai... ---")
     
-    await db.connect()
-    
-    # Restoring Session across Render OOM reboots (only if missing locally)
-    if not os.path.exists("SimpleStreamBot.session"):
-        await db.load_session_file("SimpleStreamBot", "SimpleStreamBot.session")
-    
     try:
-        loop = asyncio.get_running_loop()
-        
-        # CRITICAL FIX: Force the bot client to use the Uvicorn event loop.
-        # The Client object is created at module-load time (before Uvicorn starts),
-        # so it captures the wrong loop. We must replace it before start().
-        bot._loop = loop  # Pyrogram 2.x internal attribute
-        bot.loop = loop
-        
-        print("Starting main Pyrogram bot...")
-            
-        await bot.start()
-        
-        # After bot.start(), the dispatcher runs on whatever loop it captured.
-        # Explicitly restart it on the Uvicorn (current running) loop.
-        if hasattr(bot, "dispatcher") and bot.dispatcher:
-            try:
-                await bot.dispatcher.stop()
-            except Exception:
-                pass
-            bot.dispatcher.loop = loop
-            await bot.dispatcher.start()
-            print("✅ Pyrogram dispatcher restarted on Uvicorn event loop.")
-        
+        # DB + post-startup tasks (bot is already running)
+        if not bot.is_initialized:
+            # Fallback: start bot if not already started (e.g. uvicorn direct mode)
+            await db.connect()
+            if not os.path.exists("SimpleStreamBot.session"):
+                await db.load_session_file("SimpleStreamBot", "SimpleStreamBot.session")
+            await bot.start()
+
         me = await bot.get_me()
         Config.BOT_USERNAME = me.username
         print(f"✅ Main Bot [@{Config.BOT_USERNAME}] safaltapoorvak start ho gaya.")
 
-        # Initialize the log channel system NOW (bot is live)
+        # Initialize the log channel system
         L.init(bot, Config)
 
         # --- SET BOT MENU COMMANDS ---
@@ -102,16 +83,6 @@ async def lifespan(app: FastAPI):
         if len(multi_clients) > 1:
             print(f"✅ Multi-Client Mode Enabled. Total Clients: {len(multi_clients)}")
 
-        # Ensure we know about the channels
-        # force_refresh_dialogs removed as it is not supported for bots
-        # Update loops for worker bots before initializing them
-        for worker in multi_clients.values():
-            worker.loop = loop
-            if hasattr(worker, "dispatcher") and worker.dispatcher:
-                worker.dispatcher.loop = loop
-                
-        await initialize_clients()
-
         print(f"Verifying storage channel ({Config.STORAGE_CHANNEL})...")
         try:
             await bot.get_chat(Config.STORAGE_CHANNEL)
@@ -126,30 +97,24 @@ async def lifespan(app: FastAPI):
                 await bot.get_chat(Config.FORCE_SUB_CHANNEL)
                 print("✅ Force Sub channel accessible hai.")
             except Exception as e:
-                print(f"!!! WARNING: Bot cannot access Force Sub channel ({Config.FORCE_SUB_CHANNEL}). Bot, Force Sub channel mein admin nahi hai ya link galat hai. Error: {e}")
+                print(f"!!! WARNING: Force Sub channel error: {e}")
         
         try:
             await cleanup_channel(bot)
         except Exception as e:
-            print(f"Warning: Channel cleanup fail ho gaya. Error: {e}")
+            print(f"Warning: Channel cleanup: {e}")
 
-        # --- STARTUP BROADCAST (BACKGROUND) ---
-        # Send restart notification to all users (non-blocking)
         asyncio.create_task(send_startup_broadcast())
-
         await db.save_session_file("SimpleStreamBot", "SimpleStreamBot.session")
 
-        # Fire log_bot_start after a short delay to ensure bot is fully ready
         async def _delayed_start_log():
-            import asyncio
             await asyncio.sleep(3)
             await L.log_bot_start()
         asyncio.create_task(_delayed_start_log())
 
-        # --- ANTI-SLEEP: Self-Ping every 14 minutes to prevent Render free tier sleep ---
         async def _self_ping_loop():
             import httpx
-            await asyncio.sleep(30)  # Wait for server to be fully ready
+            await asyncio.sleep(30)
             url = f"{Config.BASE_URL.rstrip('/')}/health"
             print(f"🔁 Anti-Sleep Keeper started → pinging {url} every 14 mins")
             while True:
@@ -159,13 +124,13 @@ async def lifespan(app: FastAPI):
                         print(f"✅ Self-ping OK: {resp.status_code}")
                 except Exception as e:
                     print(f"⚠️ Self-ping failed: {e}")
-                await asyncio.sleep(14 * 60)  # 14 minutes
+                await asyncio.sleep(14 * 60)
         asyncio.create_task(_self_ping_loop())
 
         print("--- Lifespan: Startup safaltapoorvak poora hua. ---")
-    
+
     except Exception as e:
-        print(f"!!! FATAL ERROR: Bot startup ke dauraan error aa gaya: {traceback.format_exc()}")
+        print(f"!!! FATAL ERROR during lifespan startup: {traceback.format_exc()}")
     
     yield
     
@@ -2468,10 +2433,29 @@ if __name__ == "__main__":
     import asyncio
     
     async def main():
+        # ============================================================
+        # CRITICAL: Start bot HERE (before Uvicorn) so all Pyrogram
+        # session tasks are created on THIS asyncio.run() event loop.
+        # Session.__init__ calls asyncio.get_event_loop() which must
+        # return the RUNNING loop at session creation time.
+        # ============================================================
+        print("[MAIN] Connecting to Database...")
+        await db.connect()
+        
+        if not os.path.exists("SimpleStreamBot.session"):
+            await db.load_session_file("SimpleStreamBot", "SimpleStreamBot.session")
+        
+        print("[MAIN] Starting Pyrogram bot on current event loop...")
+        await bot.start()
+        print(f"[MAIN] ✅ Bot started. Starting workers...")
+        await initialize_clients()
+        print("[MAIN] ✅ Workers initialized. Starting Uvicorn...")
+        
+        # Now start Uvicorn. The lifespan will run on this same loop.
         config = uvicorn.Config(
-            app, 
-            host="0.0.0.0", 
-            port=port, 
+            app,
+            host="0.0.0.0",
+            port=port,
             log_level="info",
             access_log=False,
             timeout_keep_alive=300,
@@ -2480,8 +2464,9 @@ if __name__ == "__main__":
         )
         server = uvicorn.Server(config)
         await server.serve()
+        
+        # Cleanup on shutdown
+        if bot.is_initialized:
+            await bot.stop()
     
-    # asyncio.run() creates a fresh event loop.
-    # Both Pyrogram and Uvicorn will share it since bot.start() is
-    # called inside the lifespan which runs inside this same loop.
     asyncio.run(main())
