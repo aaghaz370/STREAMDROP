@@ -2478,4 +2478,9 @@ if __name__ == "__main__":
         print("[MAIN] Shutdown signal received.")
         await bot.stop()
     
-    asyncio.run(pyrogram_main())
+    # CRITICAL: Use bot.run() NOT asyncio.run()
+    # bot.run() uses asyncio.get_event_loop() which is the SAME loop
+    # that Session.__init__ captured at module import time.
+    # asyncio.run() creates a NEW loop causing loop mismatch where
+    # Session tasks run but updates are silently discarded.
+    bot.run(pyrogram_main())
