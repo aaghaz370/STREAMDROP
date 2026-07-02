@@ -2463,9 +2463,17 @@ if __name__ == "__main__":
         
         print("[MAIN] ✅ All ready! Listening for Telegram updates...")
         
-        # Keep Pyrogram alive and processing ALL incoming updates
-        from pyrogram.idle import idle
-        await idle()
+        # Keep alive: wait indefinitely (CTRL+C / SIGTERM will interrupt)
+        stop_event = asyncio.Event()
+        import signal
+        def _handle_signal(*args):
+            stop_event.set()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            try:
+                asyncio.get_event_loop().add_signal_handler(sig, _handle_signal)
+            except Exception:
+                pass
+        await stop_event.wait()
         
         print("[MAIN] Shutdown signal received.")
         await bot.stop()
