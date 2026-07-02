@@ -43,101 +43,12 @@ import logger as L  # Log channel integration
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Yeh function bot ko web server ke saath start aur stop karta hai.
-    Bot ALREADY started in __main__ before Uvicorn, so we just do
-    post-startup configuration here.
+    Minimal lifespan - bot is managed by pyrogram_main() in __main__.
+    This just signals FastAPI is ready.
     """
-    print("--- Lifespan: Server chalu ho raha hai... ---")
-    
-    try:
-        # DB + post-startup tasks (bot is already running)
-        if not bot.is_initialized:
-            # Fallback: start bot if not already started (e.g. uvicorn direct mode)
-            await db.connect()
-            if not os.path.exists("SimpleStreamBot.session"):
-                await db.load_session_file("SimpleStreamBot", "SimpleStreamBot.session")
-            await bot.start()
-
-        me = await bot.get_me()
-        Config.BOT_USERNAME = me.username
-        print(f"✅ Main Bot [@{Config.BOT_USERNAME}] safaltapoorvak start ho gaya.")
-
-        # Initialize the log channel system
-        L.init(bot, Config)
-
-        # --- SET BOT MENU COMMANDS ---
-        try:
-            from pyrogram.types import BotCommand
-            await bot.set_bot_commands([
-                BotCommand("start", "🏠 Start Bot"),
-                BotCommand("help", "📝 Help & Guide"),
-                BotCommand("showplan", "💎 Premium Plans"),
-                BotCommand("mydata", "📊 My Data & Usage"),
-                BotCommand("allcommands", "📜 All Commands List"),
-                BotCommand("my_links", "🔗 My Files")
-            ])
-            print("✅ Bot Commands Menu Set.")
-        except Exception as e:
-            print(f"Warning: Could not set bot commands: {e}")
-
-        if len(multi_clients) > 1:
-            print(f"✅ Multi-Client Mode Enabled. Total Clients: {len(multi_clients)}")
-
-        print(f"Verifying storage channel ({Config.STORAGE_CHANNEL})...")
-        try:
-            await bot.get_chat(Config.STORAGE_CHANNEL)
-            print("✅ Storage channel accessible hai.")
-        except Exception as e:
-            print(f"!!! ERROR: Could not access Storage Channel ({Config.STORAGE_CHANNEL}). Error: {e}")
-            print("👉 ACTION REQUIRED: Please SEND A MESSAGE (e.g. '.') in the Storage Channel NOW so I can find it!")
-
-        if Config.FORCE_SUB_CHANNEL:
-            try:
-                print(f"Verifying force sub channel ({Config.FORCE_SUB_CHANNEL})...")
-                await bot.get_chat(Config.FORCE_SUB_CHANNEL)
-                print("✅ Force Sub channel accessible hai.")
-            except Exception as e:
-                print(f"!!! WARNING: Force Sub channel error: {e}")
-        
-        try:
-            await cleanup_channel(bot)
-        except Exception as e:
-            print(f"Warning: Channel cleanup: {e}")
-
-        asyncio.create_task(send_startup_broadcast())
-        await db.save_session_file("SimpleStreamBot", "SimpleStreamBot.session")
-
-        async def _delayed_start_log():
-            await asyncio.sleep(3)
-            await L.log_bot_start()
-        asyncio.create_task(_delayed_start_log())
-
-        async def _self_ping_loop():
-            import httpx
-            await asyncio.sleep(30)
-            url = f"{Config.BASE_URL.rstrip('/')}/health"
-            print(f"🔁 Anti-Sleep Keeper started → pinging {url} every 14 mins")
-            while True:
-                try:
-                    async with httpx.AsyncClient(timeout=10) as hc:
-                        resp = await hc.get(url)
-                        print(f"✅ Self-ping OK: {resp.status_code}")
-                except Exception as e:
-                    print(f"⚠️ Self-ping failed: {e}")
-                await asyncio.sleep(14 * 60)
-        asyncio.create_task(_self_ping_loop())
-
-        print("--- Lifespan: Startup safaltapoorvak poora hua. ---")
-
-    except Exception as e:
-        print(f"!!! FATAL ERROR during lifespan startup: {traceback.format_exc()}")
-    
+    print("--- FastAPI Lifespan: Web server ready. ---")
     yield
-    
-    print("--- Lifespan: Server band ho raha hai... ---")
-    if bot.is_initialized:
-        await bot.stop()
-    print("--- Lifespan: Shutdown poora hua. ---")
+    print("--- FastAPI Lifespan: Web server shutdown. ---")
 
 app = FastAPI(lifespan=lifespan, docs_url="/api/docs", redoc_url="/api/redoc", openapi_url="/api/openapi.json")
 
@@ -2439,52 +2350,124 @@ if __name__ == "__main__":
     import threading
     
     # ============================================================
-    # DEFINITIVE FIX:
-    # Pyrogram's Session.__init__ calls asyncio.get_event_loop()
-    # which returns wrong loop when bot = Client(...) is at module level.
-    # Fix: monkey-patch Session to use asyncio.get_running_loop()
-    # which always returns the CORRECT running loop inside a coroutine.
+    # DEFINITIVE ARCHITECTURE:
+    # - Pyrogram runs on main thread via asyncio.run(pyrogram_main())
+    # - Uvicorn runs in a daemon background THREAD with its own loop
+    # - All startup tasks (broadcast, commands, etc.) run inside
+    #   pyrogram_main() on Pyrogram's loop = no thread issues
     # ============================================================
-    _original_session_init = Session.__init__
-    def _patched_session_init(self, *args, **kwargs):
-        _original_session_init(self, *args, **kwargs)
-        try:
-            self.loop = asyncio.get_event_loop()
-        except RuntimeError:
-            pass  # will be set correctly when start() is called
-    Session.__init__ = _patched_session_init
     
-    async def main():
-        # DB connect
+    uvicorn_config = uvicorn.Config(
+        app,
+        host="0.0.0.0",
+        port=port,
+        log_level="info",
+        access_log=False,
+        timeout_keep_alive=300,
+        limit_concurrency=1000,
+        backlog=2048
+    )
+    uvicorn_server = uvicorn.Server(uvicorn_config)
+    
+    def _run_uvicorn():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(uvicorn_server.serve())
+    
+    uvicorn_thread = threading.Thread(target=_run_uvicorn, daemon=True, name="uvicorn")
+    uvicorn_thread.start()
+    print(f"[MAIN] Uvicorn web server started on :{port}")
+    
+    # All startup tasks run here, on Pyrogram's loop
+    async def pyrogram_main():
         print("[MAIN] Connecting to Database...")
         await db.connect()
         if not os.path.exists("SimpleStreamBot.session"):
             await db.load_session_file("SimpleStreamBot", "SimpleStreamBot.session")
         
-        # ---- Start bot FIRST, on THIS loop ----
-        # Since we're inside asyncio.run(), asyncio.get_event_loop()
-        # now correctly returns THIS running loop.
         print("[MAIN] Starting Pyrogram bot...")
         await bot.start()
+        
+        me = await bot.get_me()
+        Config.BOT_USERNAME = me.username
+        print(f"[MAIN] ✅ Bot @{Config.BOT_USERNAME} started!")
+        
+        # Initialize logger
+        L.init(bot, Config)
+        
+        # Set bot commands
+        try:
+            from pyrogram.types import BotCommand
+            await bot.set_bot_commands([
+                BotCommand("start", "🏠 Start Bot"),
+                BotCommand("help", "📝 Help & Guide"),
+                BotCommand("showplan", "💎 Premium Plans"),
+                BotCommand("mydata", "📊 My Data & Usage"),
+                BotCommand("allcommands", "📜 All Commands List"),
+                BotCommand("my_links", "🔗 My Files")
+            ])
+            print("✅ Bot Commands Menu Set.")
+        except Exception as e:
+            print(f"Warning: Commands: {e}")
+        
+        # Start workers
         print("[MAIN] Starting worker clients...")
         await initialize_clients()
-        print("[MAIN] ✅ All clients ready. Starting Uvicorn...")
         
-        # ---- Run Uvicorn on the SAME loop ----
-        config = uvicorn.Config(
-            app,
-            host="0.0.0.0",
-            port=port,
-            log_level="info",
-            access_log=False,
-            timeout_keep_alive=300,
-            limit_concurrency=1000,
-            backlog=2048
-        )
-        server = uvicorn.Server(config)
-        await server.serve()
+        # Verify channels
+        try:
+            await bot.get_chat(Config.STORAGE_CHANNEL)
+            print("✅ Storage channel accessible.")
+        except Exception as e:
+            print(f"Storage channel error: {e}")
         
-        if bot.is_initialized:
-            await bot.stop()
+        if Config.FORCE_SUB_CHANNEL:
+            try:
+                await bot.get_chat(Config.FORCE_SUB_CHANNEL)
+                print("✅ Force sub channel accessible.")
+            except Exception as e:
+                print(f"Force sub channel error: {e}")
+        
+        try:
+            await cleanup_channel(bot)
+        except Exception as e:
+            print(f"Cleanup: {e}")
+        
+        # Backup session
+        await db.save_session_file("SimpleStreamBot", "SimpleStreamBot.session")
+        
+        # Startup broadcast
+        asyncio.create_task(send_startup_broadcast())
+        
+        # Log startup
+        async def _delayed_start_log():
+            await asyncio.sleep(3)
+            await L.log_bot_start()
+        asyncio.create_task(_delayed_start_log())
+        
+        # Self-ping loop
+        async def _self_ping_loop():
+            import httpx
+            await asyncio.sleep(30)
+            url = f"{Config.BASE_URL.rstrip('/')}/health"
+            print(f"🔁 Anti-Sleep Keeper → {url}")
+            while True:
+                try:
+                    async with httpx.AsyncClient(timeout=10) as hc:
+                        resp = await hc.get(url)
+                        print(f"✅ Self-ping OK: {resp.status_code}")
+                except Exception as e:
+                    print(f"⚠️ Self-ping failed: {e}")
+                await asyncio.sleep(14 * 60)
+        asyncio.create_task(_self_ping_loop())
+        
+        print("[MAIN] ✅ All ready! Listening for Telegram updates...")
+        
+        # Keep Pyrogram alive and processing ALL incoming updates
+        from pyrogram.idle import idle
+        await idle()
+        
+        print("[MAIN] Shutdown signal received.")
+        await bot.stop()
     
-    asyncio.run(main())
+    asyncio.run(pyrogram_main())
